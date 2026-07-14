@@ -4,9 +4,10 @@
     - dry-run
     - qc-seq
   command: >
-    snakemake -n
+    snakemake
     --snakefile includes/qc-seq/Snakefile
-    --printshellcmds
+    --workflow-profile test
+    --dry-run
     --configfile test/data/config/qc-seq.json
     --config pepfile=test/pep/chrM-trio-subsamples.csv
   stdout:
@@ -30,16 +31,37 @@
       - "cutadapt .*TestSample3.*pigz --decompress --stdout test/data/fastq/R1.fq.gz 'test/data/fastq/SRR8615409 chrM_1.fastq.gz' test/data/fastq/SRR8615687_flt3_1.fastq.gz"
       - "cutadapt .*TestSample3.*pigz --decompress --stdout test/data/fastq/R2.fq.gz 'test/data/fastq/SRR8615409 chrM_2.fastq.gz' test/data/fastq/SRR8615687_flt3_2.fastq.gz"
 
-# Singularity should be available
-- name: test-qc-sanity-singularity
+- name: test-qc-hamlet-config
   tags:
-    - sanity
+    - dry-run
     - qc-seq
   command: >
-    singularity --version
+    snakemake
+    --snakefile includes/qc-seq/Snakefile
+    --workflow-profile test
+    --dry-run
+    --configfile test/data/config/hamlet-dry.json
+    --config pepfile=test/pep/chrM-trio-subsamples.csv
   stdout:
+    contains:
+    # The trimmed fastq files should be merged
+    - "TestSample1/qc-seq/TestSample1-R1.fq.gz"
+    - "TestSample1/qc-seq/TestSample1-R2.fq.gz"
+    - "TestSample2/qc-seq/TestSample2-R1.fq.gz"
+    - "TestSample2/qc-seq/TestSample2-R2.fq.gz"
+    - "TestSample3/qc-seq/TestSample3-R1.fq.gz"
+    - "TestSample3/qc-seq/TestSample3-R2.fq.gz"
+    - "rule sequali"
+    # The forward/reverse fastq files from the PEP should be handled correctly
     contains_regex:
-      - "singularity(-ce)? version 3"
+      - "cutadapt .*TestSample1.*pigz --decompress --stdout test/data/fastq/R1.fq.gz"
+      - "cutadapt .*TestSample1.*pigz --decompress --stdout test/data/fastq/R2.fq.gz"
+
+      - "cutadapt .*TestSample2.*pigz --decompress --stdout test/data/fastq/R1.fq.gz 'test/data/fastq/SRR8615409 chrM_1.fastq.gz'"
+      - "cutadapt .*TestSample2.*pigz --decompress --stdout test/data/fastq/R2.fq.gz 'test/data/fastq/SRR8615409 chrM_2.fastq.gz'"
+
+      - "cutadapt .*TestSample3.*pigz --decompress --stdout test/data/fastq/R1.fq.gz 'test/data/fastq/SRR8615409 chrM_1.fastq.gz' test/data/fastq/SRR8615687_flt3_1.fastq.gz"
+      - "cutadapt .*TestSample3.*pigz --decompress --stdout test/data/fastq/R2.fq.gz 'test/data/fastq/SRR8615409 chrM_2.fastq.gz' test/data/fastq/SRR8615687_flt3_2.fastq.gz"
 
 # QC pipeline should run successfully on multiple samples with differing number
 # of readgroups
@@ -48,15 +70,11 @@
     - functional
     - qc-seq
   command: >
-    snakemake -rp
+    snakemake
     --snakefile includes/qc-seq/Snakefile
+    --workflow-profile test
     --configfile test/data/config/qc-seq.json
     --config pepfile=test/pep/chrM-trio-subsamples.csv
-    --cores
-    --verbose
-    --use-singularity
-    --singularity-args '--cleanenv --bind /tmp'
-    --singularity-prefix '~/.singularity/cache/snakemake'
   files:
     # QC pipeline should create output files for TestSample1
     - path: "TestSample1/qc-seq/TestSample1-R1.fq.gz"
@@ -67,7 +85,7 @@
     # QC pipeline should create output file for TestSample3
     - path: "TestSample3/qc-seq/TestSample3-R1.fq.gz"
     - path: "TestSample3/qc-seq/TestSample3-R2.fq.gz"
-    - path: "log/cutadapt.TestSample3.txt"
+    - path: "log/cutadapt.TestSample3.out"
       contains:
         - "This is cutadapt"
     - path: "multiqc_qc_seq.html"
@@ -76,8 +94,14 @@
         - "qc-seq"
         # Sequali sample names must be renamed
         - "TestSample1-R1.fq.gz_TestSample1-R2.fq.gz"
+      # The MultiQC report must contain all relevant sections
+      contains:
+        - "Cutadapt"
+        - "Sequali"
     - path: TestSample1/qc-seq/sequali/TestSample1.json
     - path: TestSample1/qc-seq/sequali/TestSample1.html
+    - path: multiqc_filelist_qc_seq.txt
+      should_exist: False
 
 - name: lint-qc
   tags:
@@ -95,3 +119,24 @@
     - sanity
     - qc-seq
   command: snakefmt --check includes/qc-seq/
+
+- name: black-qc
+  tags:
+    - sanity
+    - qc-seq
+  command: black --check includes/qc-seq/
+
+- name: test-qc-seq-sample-with-space
+  tags:
+    - sanity
+    - qc-seq
+  command: >
+    snakemake
+    --snakefile includes/qc-seq/Snakefile
+    --workflow-profile test
+    --configfile test/data/config/qc-seq.json
+    --config pepfile=test/pep/invalid.csv
+  exit_code: 1
+  stderr:
+    contains:
+      - 'RuntimeError: Spaces in samples are not supported ("SRR 8615687")'

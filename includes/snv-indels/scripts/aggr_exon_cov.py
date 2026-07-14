@@ -5,18 +5,27 @@ import json
 import sys
 import statistics as stats
 from collections import namedtuple
-from typing import Dict, Iterable, Optional, TextIO, Tuple
+from typing import Any, Dict, Iterable, Optional, Sequence, TextIO, Tuple
 
 
-class Row(namedtuple("Row",
-                     ["chrom", "start", "end",
-                      "feature", "exon_num", "exon_pos", "cov"])):
+class Row(
+    namedtuple(
+        "Row", ["chrom", "start", "end", "feature", "exon_num", "exon_pos", "cov"]
+    )
+):
 
     @classmethod
     def from_raw_line(cls, line: str) -> "Row":
         cols = line.strip().split("\t")
-        return cls(cols[0], int(cols[1]), int(cols[2]), cols[3], int(cols[4]),
-                   int(cols[5]) - 1, int(cols[6]))
+        return cls(
+            cols[0],
+            int(cols[1]),
+            int(cols[2]),
+            cols[3],
+            int(cols[4]),
+            int(cols[5]) - 1,
+            int(cols[6]),
+        )
 
     @property
     def key(self) -> Tuple[str, int]:
@@ -27,9 +36,11 @@ class Row(namedtuple("Row",
         return (self.chrom, self.start + self.exon_pos)
 
 
-def aggr_covs_entry(entry: dict, cov_limits: Iterable[int]) -> dict:
+def aggr_covs_entry(entry: Dict[str, Any], cov_limits: Iterable[int]) -> Dict[str, Any]:
     covs = entry.pop("covs")
-    metrics = {k: None for k in ("min", "max", "avg", "median", "stdev")}
+    metrics: Dict[str, Any] = {
+        k: None for k in ("min", "max", "avg", "median", "stdev")
+    }
     metrics["count"] = 0
     metrics["frac_cov_at_least"] = {f"{k}x": 0 for k in cov_limits}
     metrics["len"] = entry["end"] - entry["start"]
@@ -57,8 +68,7 @@ def aggr_covs_entry(entry: dict, cov_limits: Iterable[int]) -> dict:
             "avg": avg,
             "median": median,
             "stdev": stdev,
-            "frac_cov_at_least": {f"{k}x": v / count
-                                  for k, v in limit_counts.items()}
+            "frac_cov_at_least": {f"{k}x": v / count for k, v in limit_counts.items()},
         }
 
     entry["metrics"] = metrics
@@ -78,12 +88,18 @@ def parse_idm(idm_fh: TextIO) -> Dict[str, str]:
     return idms
 
 
-def group_per_exon(input_fh: TextIO, idm_fh: Optional[TextIO]=None,
-                   cov_limits: Iterable[int]=(8, 10, 20, 30, 40, 50)):
-    idms = {} if idm_fh is None else parse_idm(idm_fh)
-    grouped = {}
+Key = Tuple[str, int]
 
-    def include_row(row):
+
+def group_per_exon(
+    input_fh: TextIO,
+    idm_fh: Optional[TextIO] = None,
+    cov_limits: Iterable[int] = (8, 10, 20, 30, 40, 50),
+) -> Dict[Key, Dict[str, Any]]:
+    idms = {} if idm_fh is None else parse_idm(idm_fh)
+    grouped: Dict[Key, Dict[str, Any]] = {}
+
+    def include_row(row: Row) -> bool:
         if idms:
             return row.feature in idms
         return True
@@ -94,10 +110,14 @@ def group_per_exon(input_fh: TextIO, idm_fh: Optional[TextIO]=None,
         if include_row(row):
             if row.key not in grouped:
                 grouped[row.key] = {
-                    "chrom": row.chrom, "start": row.start, "end": row.end,
-                    "gx": idms[row.feature], "trx": row.feature,
+                    "chrom": row.chrom,
+                    "start": row.start,
+                    "end": row.end,
+                    "gx": idms[row.feature],
+                    "trx": row.feature,
                     "exon_num": row.exon_num,
-                    "covs": []}
+                    "covs": [],
+                }
             grouped[row.key]["covs"].append(row.cov)
 
         if idx % 1_000_000 == 0 or idx == 1:
@@ -107,11 +127,12 @@ def group_per_exon(input_fh: TextIO, idm_fh: Optional[TextIO]=None,
     print(f"processed {idx:,} lines in total", file=sys.stderr)
     print("aggregating coverage values ...", file=sys.stderr)
 
-    return {k: aggr_covs_entry(v, cov_limits)
-            for k, v in grouped.items()}
+    return {k: aggr_covs_entry(v, cov_limits) for k, v in grouped.items()}
 
 
-def main(input_tsv, output, id_mapping, cov_limit):
+def main(
+    input_tsv: TextIO, output: str, id_mapping: str, cov_limit: Sequence[int]
+) -> None:
     """Calculates exon-level coverage metrics.
 
     The input to this script is a TSV file with the following columns:
@@ -136,25 +157,26 @@ def main(input_tsv, output, id_mapping, cov_limit):
     with open(id_mapping) as mapping:
         grouped = group_per_exon(input_tsv, mapping, cov_limit)
 
-    def serialize_key(row_key):
+    def serialize_key(row_key: Key) -> str:
         return f"{row_key[0]}|{row_key[1]}"
 
     with open(output, "wt") as fout:
-        json.dump({serialize_key(k): v for k, v in grouped.items()},
-              fout, indent=2)
+        json.dump({serialize_key(k): v for k, v in grouped.items()}, fout, indent=2)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("input_tsv", type=argparse.FileType("r"),
-            default=sys.stdin)
+    parser.add_argument("input_tsv", type=argparse.FileType("r"), default=sys.stdin)
     parser.add_argument("output")
     parser.add_argument("--id-mapping")
-    parser.add_argument("--cov-limit", type=int, nargs="+",
+    parser.add_argument(
+        "--cov-limit",
+        type=int,
+        nargs="+",
         default=[8, 10, 20, 30, 40, 50],
-        help="Values at which fraction coverage will be calculated.")
+        help="Values at which fraction coverage will be calculated.",
+    )
 
     args = parser.parse_args()
     main(args.input_tsv, args.output, args.id_mapping, args.cov_limit)
-

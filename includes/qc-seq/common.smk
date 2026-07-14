@@ -1,18 +1,26 @@
 from types import SimpleNamespace
 
 containers = {
-    "cutadapt": "docker://quay.io/biocontainers/cutadapt:4.6--py39hf95cd2a_1",
-    "multiqc": "docker://quay.io/biocontainers/multiqc:1.22.1--pyhdfd78af_0",
-    "sequali": "docker://quay.io/biocontainers/sequali:0.9.1--py310h4b81fae_0",
+    "cutadapt": "docker://quay.io/biocontainers/cutadapt:5.1--py310h1fe012e_0",
+    "multiqc": "docker://quay.io/biocontainers/multiqc:1.31--pyhdfd78af_0",
+    "sequali": "docker://quay.io/biocontainers/sequali:1.0.2--py310h1fe012e_0",
 }
 
 
 pepfile: config["pepfile"]
 
 
+# If we run with the full hamlet configuration, subset the configuration
+if "qc-seq" in config:
+    config = config["qc-seq"]
+
 # Put each sample name in a SimpleNamespace to mimic Snakemake wildcard usage
 # (e.g {wildcards.sample}). This is only used in the 'all' rule.
 samples = [SimpleNamespace(sample=sample) for sample in pep.sample_table["sample_name"]]
+
+for s in samples:
+    if " " in s.sample:
+        raise RuntimeError(f'Spaces in samples are not supported ("{s.sample}")')
 
 
 def get_input_fastq(sample, pair):
@@ -58,8 +66,15 @@ def multiqc_files():
     return cutadapt + sequali
 
 
+def multiqc_modules():
+    """Define which MultiQC modules to run here"""
+    modules = ["cutadapt", "sequali"]
+    return [f" --module {module}" for module in modules]
+
+
 module_output = SimpleNamespace(
     forward=get_forward_output,
     reverse=get_reverse_output,
     multiqc_files=multiqc_files(),
+    multiqc_parquet="multiqc_qc_seq_data/multiqc.parquet",
 )

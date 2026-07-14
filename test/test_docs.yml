@@ -6,3 +6,5 @@
   command: make -C docs/ html
   files:
     - path: docs/build/html/genindex.html
+      contains:
+        - "expression"

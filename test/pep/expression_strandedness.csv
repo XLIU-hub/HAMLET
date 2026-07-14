@@ -1,0 +1,4 @@
+sample_name,strandedness,bam,count
+SRR8615409-forward,forward,test/data/expression/SRR8615409.bam,test/data/expression/SRR8615409.ReadsPerGene.out.tab
+SRR8615409-reverse,reverse,test/data/expression/SRR8615409.bam,test/data/expression/SRR8615409.ReadsPerGene.out.tab
+SRR8615409-unstranded,unstranded,test/data/expression/SRR8615409.bam,test/data/expression/SRR8615409.ReadsPerGene.out.tab

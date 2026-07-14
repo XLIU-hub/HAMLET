@@ -1,0 +1,225 @@
+include: "common.smk"
+
+
+rule all:
+    input:
+        multiqc="multiqc_expression.html",
+        expression_by_strand=[
+            f"{sample.sample}/expression/by_strand.tsv" for sample in samples
+        ],
+        json=[module_output.json(sample) for sample in samples],
+
+
+rule normalized_coverage:
+    input:
+        bam=get_bam,
+        counts=get_counts,
+        gtf=config["gtf"],
+        bed=config.get("bed", []),
+        src=workflow.source_path("scripts/coverage.py"),
+        # Needed to localize the gtf script to the cache
+        utils=workflow.source_path("scripts/gtf.py"),
+    output:
+        normalized="{sample}/expression/coverage.normalized.tsv",
+        raw="{sample}/expression/coverage.tsv",
+    log:
+        "log/normalized_coverage.{sample}.txt",
+    container:
+        containers["pysam"]
+    threads: 1
+    params:
+        housekeeping=config["housekeeping"],
+        genes_of_interest=config["genes_of_interest"],
+    shell:
+        """
+        # Calculate the normalized coverage
+        python3 {input.src} \
+            --bam {input.bam} \
+            --counts {input.counts} \
+            --housekeeping {params.housekeeping} \
+            --gtf {input.gtf} \
+            --bed {input.bed} \
+            --genes {params.genes_of_interest} \
+            >{output.normalized} 2>{log}
+
+        # Extract the raw coverage counts
+        python3 {input.src} \
+            --bam {input.bam} \
+            --counts {input.counts} \
+            --housekeeping {params.housekeeping} \
+            --gtf {input.gtf} \
+            --bed {input.bed} \
+            --genes {params.genes_of_interest} \
+            --raw \
+            >{output.raw} 2>>{log}
+        """
+
+
+rule transform_counts:
+    """Transform the counts table to use with seAMLess"""
+    input:
+        counts=get_counts,
+        src=workflow.source_path("scripts/transform_counts.py"),
+    output:
+        tsv="{sample}/expression/by_strand.tsv",
+    log:
+        "log/transform_counts.{sample}.txt",
+    container:
+        containers["pysam"]
+    threads: 1
+    params:
+        strandedness=get_strand,
+    shell:
+        """
+        python3 {input.src} \
+            --counts {input.counts} \
+            --strand {params.strandedness} \
+            --sample {wildcards.sample} \
+            >{output.tsv} 2>{log}
+        """
+
+
+rule seamless:
+    """Determine cell composition"""
+    input:
+        counts="{sample}/expression/by_strand.tsv",
+        ref=config["seamless_ref"],
+        meta=config["seamless_meta"],
+        src=workflow.source_path("scripts/seAMLessWrapper.R"),
+    output:
+        deconvolution="{sample}/expression/seAMLess/deconvolution.csv",
+        venetoclax="{sample}/expression/seAMLess/venetoclax_resistance.csv",
+        cell_types_plot="{sample}/expression/seAMLess/cell-types.png",
+    log:
+        "log/seamless.{sample}.txt",
+    container:
+        containers["seamless"]
+    threads: 1
+    shell:
+        """
+        outdir=$(dirname {output.deconvolution})
+        Rscript {input.src} \
+            --exprs-ref {input.ref} \
+            --meta-ref {input.meta} \
+            --outdir $outdir \
+            --counts {input.counts} \
+            --sample-name {wildcards.sample} \
+            --verbose 2>{log}
+        """
+
+
+rule amlmapr:
+    """Predict the subtype of the sample using AMLmapR"""
+    input:
+        counts="{sample}/expression/by_strand.tsv",
+        src=workflow.source_path("scripts/AMLmapR_wrapper.R"),
+    output:
+        clusters="{sample}/expression/AMLmapR/aml_cluster_predictions.csv",
+    log:
+        "log/amlmapr.{sample}.txt",
+    container:
+        containers["amlmapr"]
+    threads: 1
+    shell:
+        """
+        outdir=$(dirname {output.clusters})
+        Rscript {input.src} \
+            --counts {input.counts} \
+            --outdir $outdir \
+            --sample-name {wildcards.sample} \
+            --verbose 2>{log}
+        """
+
+
+rule json_output:
+    input:
+        coverage=module_output.coverage,
+        norm_coverage=module_output.normalized_expression,
+        src=workflow.source_path("scripts/json-output.py"),
+        deconvolution=rules.seamless.output.deconvolution,
+        cell_types_plot=rules.seamless.output.cell_types_plot,
+        subtype=rules.amlmapr.output.clusters,
+    output:
+        "{sample}/expression/expression-output.json",
+    log:
+        "log/expression.{sample}.txt",
+    container:
+        containers["pysam"]
+    params:
+        strandedness=get_strand,
+        genes=config["report"],
+    shell:
+        """
+        python3 {input.src} \
+            --coverage {input.coverage} \
+            --norm-coverage {input.norm_coverage} \
+            --strandedness {params.strandedness} \
+            --genes {params.genes} \
+            --deconvolution {input.deconvolution} \
+            --cell-types {input.cell_types_plot} \
+            --subtype {input.subtype} \
+            --sample {wildcards.sample} \
+            >{output} 2>{log}
+        """
+
+
+rule merge_samples:
+    input:
+        counts=[module_output.normalized_expression(sample) for sample in samples],
+        sample_json=[module_output.json(sample) for sample in samples],
+        src=workflow.source_path("scripts/multiqc.py"),
+    output:
+        unstranded=temporary("merged_expression_unstranded_mqc.tsv"),
+        stranded=temporary("merged_expression_stranded_mqc.tsv"),
+        cell_types=temporary("merged_expression_cell_types_mqc.tsv"),
+    log:
+        "log/merge_samples.txt",
+    container:
+        containers["multiqc"]
+    threads: 1
+    params:
+        samples=[sample.sample for sample in samples],
+        strandedness=[get_strand(sample) for sample in samples],
+    shell:
+        """
+        python3 {input.src} \
+            --counts {input.counts} \
+            --sample-json {input.sample_json} \
+            --samples {params.samples} \
+            --strandedness {params.strandedness} 2>{log}
+        """
+
+
+rule multiqc:
+    input:
+        stats=module_output.multiqc_files,
+        config=workflow.source_path("../../cfg/multiqc.yml"),
+    output:
+        html="multiqc_expression.html",
+        folder=directory("multiqc_expression_data"),
+        parquet="multiqc_expression_data/multiqc.parquet",
+        filelist=temporary("multiqc_filelist_expression.txt"),
+    log:
+        "log/expression.multiqc.txt",
+    container:
+        containers["multiqc"]
+    params:
+        depth=2,
+    shell:
+        """
+        rm -f {output.filelist}
+
+        for fname in {input.stats}; do
+            echo $fname >>{output.filelist}
+        done
+
+        multiqc \
+            --force \
+            --dirs \
+            --dirs-depth {params.depth} \
+            --fullnames \
+            --fn_as_s_name \
+            --file-list {output.filelist} \
+            --config {input.config} \
+            --filename {output.html} 2>{log}
+        """

@@ -4,41 +4,66 @@
     - dry-run
     - snv-indels
   command: >
-    snakemake -n
+    snakemake
     --snakefile includes/snv-indels/Snakefile
-    --printshellcmds
+    --workflow-profile test
+    --dry-run
     --configfile test/data/config/snv-indels-vep-cache.json
-    --config pepfile=test/pep/chrM-trio.csv
+    --config pepfile=test/pep/chrM-trio.csv min_variant_depth=4
   stdout:
     contains:
       - "TestSample1/snv-indels/TestSample1.vep.txt.gz"
-      - "TestSample1/snv-indels/TestSample1.vep.high.txt.gz"
+      - "TestSample1/snv-indels/TestSample1.vep.annotated.txt.gz"
 
       - "TestSample2/snv-indels/TestSample2.vep.txt.gz"
-      - "TestSample2/snv-indels/TestSample2.vep.high.txt.gz"
+      - "TestSample2/snv-indels/TestSample2.vep.annotated.txt.gz"
 
       - "TestSample3/snv-indels/TestSample3.vep.txt.gz"
-      - "TestSample3/snv-indels/TestSample3.vep.high.txt.gz"
+      - "TestSample3/snv-indels/TestSample3.vep.annotated.txt.gz"
 
-      - "TestSample3/snv-indels/TestSample3.hotspot.vcf"
       - "rule multiqc"
+      - "rule call_regions"
+      # Test that we create the id_mappings.txt file
+      - "rule id_mapping"
     contains_regex:
       - "STAR .* \"ID:TestSample1\" \"SM:TestSample1\" .* --readFilesIn 'test/data/fastq/SRR8615409 chrM_1.fastq.gz' 'test/data/fastq/SRR8615409 chrM_2.fastq.gz'"
       # Test that params.min_intron_size is used
       - "STAR .* --alignIntronMin 50"
-      - "TestSample1/snv-indels/Aligned.sortedByCoord.out.bam"
-      - "TestSample1/snv-indels/Aligned.sortedByCoord.out.bam.bai"
+      - "TestSample1/snv-indels/TestSample1.bam"
+      - "TestSample1/snv-indels/TestSample1.bam.bai"
+      # Test the default variant allele frequency of 0.05
+      - "vardict-java .* -f 0.05"
+      # Test that the minimum variant depth is 4 set to 4
+      - "vardict-java .* -r 4"
 
-# Singularity should be available
-- name: test-snv-indels-sanity-singularity
+
+- name: test-snv-indels-dry-run-variant-allele-frequency
   tags:
-    - sanity
+    - dry-run
     - snv-indels
   command: >
-    singularity --version
+    snakemake
+    --snakefile includes/snv-indels/Snakefile
+    --workflow-profile test
+    --dry-run
+    --configfile test/data/config/snv-indels-vep-cache.json
+    --config pepfile=test/pep/chrM-trio.csv variant_allele_frequency=0.1
   stdout:
     contains_regex:
-      - "singularity(-ce)? version 3"
+      # Test the that we used the specify variant allele frequency of 0.1
+      - "vardict-java .* -f 0.1"
+
+- name: test-snv-indels-hamlet-config
+  tags:
+    - dry-run
+    - snv-indels
+  command: >
+    snakemake
+    --snakefile includes/snv-indels/Snakefile
+    --workflow-profile test
+    --dry-run
+    --configfile test/data/config/hamlet-dry.json
+    --config pepfile=test/pep/chrM-trio.csv
 
 # snv-indel pipeline should run successfully on chrM test data
 - name: test-snv-indels-chrM
@@ -49,16 +74,12 @@
     bash -c "
     source test/helper.sh
 
-    snakemake -rp \
+    snakemake \
       --snakefile includes/snv-indels/Snakefile \
-      --configfile test/data/config/snv-indels.json \
-      --config pepfile=test/pep/chrM.csv \
-      --cores \
+      --workflow-profile test \
       --notemp \
-      --verbose \
-      --use-singularity \
-      --singularity-args '--cleanenv --bind /tmp' \
-      --singularity-prefix '~/.singularity/cache/snakemake'
+      --configfile test/data/config/snv-indels.json \
+      --config pepfile=test/pep/chrM.csv
     "
   stderr:
     # snv-indel should not use a local VEP database, but query ensembl
@@ -71,12 +92,11 @@
         - "outSAMattrRGline +ID:SRR8615409"
     - path: "SRR8615409/snv-indels/SRR8615409.ReadsPerGene.out.tab"
     - path: "SRR8615409/snv-indels/SRR8615409.exon_cov_stats.json"
-    - path: "SRR8615409/snv-indels/SRR8615409.aln_stats"
+    - path: "SRR8615409/snv-indels/SRR8615409.alignment_summary_metrics"
     - path: "SRR8615409/snv-indels/SRR8615409.vep.txt.gz"
-    - path: "SRR8615409/snv-indels/SRR8615409.vep.target.txt.gz"
-    - path: "SRR8615409/snv-indels/SRR8615409.vep.high.txt.gz"
+    - path: "SRR8615409/snv-indels/SRR8615409.vep.annotated.txt.gz"
       contains:
-        - "stop_gained"
+        - "missense_variant"
     # Test log files
     - path: "SRR8615409/snv-indels/Log.final.out"
       contains:
@@ -86,52 +106,95 @@
     - path: "log/exon_cov_ref.txt"
     - path: "log/exon_cov.SRR8615409.txt"
     - path: "log/vardict.SRR8615409.txt"
-      contains:
-        - "TIME: Getting REF"
-    - path: "log/aln_stats.SRR8615409.txt"
+    - path: "log/picard_metrics.SRR8615409.txt"
       contains:
         - "CollectAlignmentSummaryMetrics"
-    - path: "log/insert_stats.SRR8615409.txt"
-      contains:
         - "CollectInsertSizeMetrics"
-    - path: "log/rna_stats.SRR8615409.txt"
-      contains:
-        - "CollectRnaSeqMetrics"
-    - path: "log/annotate_vars.SRR8615409.txt"
-    - path: "log/filter_vep_high.SRR8615409.txt"
-    - path: "log/filter_vep_target.SRR8615409.txt"
+        - "RnaSeqMetrics"
+    - path: "log/VEP.SRR8615409.txt"
+    - path: "log/filter_annotate_vep.SRR8615409.txt"
     - path: "SRR8615409/snv-indels/snv-indels-output.json"
+      contains:
+        # Test that VEP outputs the genomic HGVS
+        - "hgvsg"
+        # Test that we find a variant from the inclusion criteria
+        - "ENST00000361899:c.334A>G"
+      must_not_contain:
+        # Test that we do not find a transcript from the annotation criteria file
+        # that is missing from the inclusion criteria
+        - "ENST00000361453:c.117T>C"
+        # Test that we do not find a transcript from the known variants file
+        # that is missing from the inclusion criteria
+        - "ENST00000361390"
     # Test that a STAR counts file is generated
     - path: "SRR8615409/snv-indels/SRR8615409.ReadsPerGene.out.tab"
       contains:
         - "N_unmapped"
-    # Test that one specific variant between MT-ATP8 and MT-ATP6 hotspots is
-    # not in the hotspot vcf file
-    - path: SRR8615409/snv-indels/SRR8615409.hotspot.vcf
-      must_not_contain:
-        - "chrM\t8566"
-      # flanking variants
+    # Test that we generate the call regions file
+    - path: "call_regions.bed"
       contains:
-        - "chrM\t8468"
-        - "chrM\t8655"
-    # Test that the targetted VEP output is not empty
-    - path: SRR8615409/snv-indels/SRR8615409.vep.target.txt.gz
-      contains:
-        - "allele_string"
-
-    # Test that file names are set correctly in MultiQC report
+        # Region for MT-TF
+        - "chrM\t576\t3304"
     - path: multiqc_snv_indels.html
       must_not_contain:
+        # Test that file names are set correctly in MultiQC report
         - "ReadsPerGene.out.tab"
         - "Log.final.out"
         - "aln_stats"
         - "insert_stats"
         - "rna_stats"
         - "vep_stats.txt"
+        # If the library is unstranded (or strand not set), do not include
+        # Strand Mapping in the MultiQC report
+        - "RnaSeqMetrics Strand Mapping"
       contains:
         - "VEP"
         - "STAR"
         - "Picard"
+
+    # Test that we remove the STAR temporary folders
+    - path: SRR8615409/snv-indels/_STARgenome
+      should_exist: False
+    - path: SRR8615409/snv-indels/_STARpass1
+      should_exist: False
+    - path: id_mapping.txt
+      contains:
+        # Test that we find a transcript from the filter criteria file
+        - "ENST00000361899"
+      must_not_contain:
+        # Test that we do not find a transcript from the annotation criteria file
+        # which is not in the inclusion_criteria
+        - "ENST00000305877"
+        # Test that we do not find a transcript from the known variants file
+        # which is not in the inclusion_criteria
+        - "ENST00000361390"
+
+- name: test-snv-indels-stranded
+  tags:
+    - functional
+    - snv-indels
+  command: >
+    bash -c "
+    source test/helper.sh
+
+    snakemake \
+      --snakefile includes/snv-indels/Snakefile \
+      --workflow-profile test \
+      --configfile test/data/config/snv-indels.json \
+      --config pepfile=test/pep/targetted.csv \
+    "
+  files:
+    - path: multiqc_snv_indels.html
+      contains:
+        # Test that MultiQC contains a section on de strandedness
+      - "RnaSeqMetrics Strand Mapping"
+    - path: multiqc_snv_indels_data/picard_rnaseqmetrics_strand_plot.txt
+      contains:
+        # Test that most reads are the correct strand (sample is reverse stranded)
+        - "Sample\tCorrect\tIncorrect"
+        - "MO1-RNAseq-1-16714\t155.0\t5.0"
+    - path: multiqc_filelist_snv_indels.txt
+      should_exist: False
 
 # VEP should switch to offline mode when "vep_cache" is specified
 - name: test-chrM-vep-cache
@@ -139,33 +202,15 @@
     - dry-run
     - snv-indels
   command: >
-    snakemake -n
+    snakemake
     --snakefile includes/snv-indels/Snakefile
-    --printshellcmds
+    --workflow-profile test
+    --dry-run
     --configfile test/data/config/snv-indels-vep-cache.json
     --config pepfile=test/pep/chrM.csv
   stdout:
     contains_regex:
-      - 'vep .* --offline'
-    must_not_contain_regex:
-      - 'vep .* --database'
-
-# Test if a blacklist variant file is passed to filter-vep script
-- name: test-chrM-variant-blacklist
-  tags:
-    - dry-run
-    - snv-indels
-  command: >
-    snakemake -n
-    --snakefile includes/snv-indels/Snakefile
-    --printshellcmds
-    --configfile test/data/config/snv-indels-vep-cache.json
-    --config
-      pepfile=test/pep/chrM.csv
-      blacklist=test/data/blacklist.txt
-  stdout:
-    contains_regex:
-      - 'filter_vep.py .* --blacklist test/data/blacklist.txt'
+      - 'flags="--offline'
 
 - name: lint-snv-indels
   tags:
@@ -183,3 +228,124 @@
     - sanity
     - snv-indels
   command: snakefmt --check includes/snv-indels/
+
+- name: black-snv-indels
+  tags:
+    - sanity
+    - snv-indels
+  command: black --check includes/snv-indels/
+
+- name: mypy-snv-indels
+  tags:
+    - sanity
+    - snv-indels
+  command: mypy --strict --ignore-missing-imports includes/snv-indels/
+
+
+- name: test-snv-indels-sample-with-space
+  tags:
+    - sanity
+    - snv-indels
+  command: >
+    snakemake
+    --snakefile includes/snv-indels/Snakefile
+    --workflow-profile test
+    --configfile test/data/config/snv-indels.json
+    --config pepfile=test/pep/invalid.csv
+  exit_code: 1
+  stderr:
+    contains:
+      - 'RuntimeError: Spaces in samples are not supported ("SRR 8615687")'
+
+- name: test-snv-indels-id-mapping-deprecated
+  tags:
+    - sanity
+    - snv-indels
+  command: >
+    snakemake
+    --snakefile includes/snv-indels/Snakefile
+    --workflow-profile test
+    --dry-run
+    --configfile test/data/config/snv-indels-vep-cache.json
+    --config pepfile=test/pep/chrM-trio.csv min_variant_depth=4 ref_id_mapping=filename
+  exit_code: 1
+  stdout:
+    contains:
+      - "'ref_id_mapping' is no longer supported"
+
+- name: test-snv-indels-blacklist-deprecated
+  tags:
+    - sanity
+    - snv-indels
+  command: >
+    snakemake
+    --snakefile includes/snv-indels/Snakefile
+    --workflow-profile test
+    --dry-run
+    --configfile test/data/config/snv-indels-vep-cache.json
+    --config pepfile=test/pep/chrM-trio.csv min_variant_depth=4 blacklist=filename
+  exit_code: 1
+  stdout:
+    contains:
+      - "'blacklist' is no longer supported"
+
+- name: test-snv-indels-vep-include-consequence-deprecated
+  tags:
+    - sanity
+    - snv-indels
+  command: >
+    snakemake
+    --snakefile includes/snv-indels/Snakefile
+    --workflow-profile test
+    --dry-run
+    --configfile test/data/config/snv-indels-vep-cache.json
+    --config pepfile=test/pep/chrM-trio.csv min_variant_depth=4 vep_include_consequence=missense
+  exit_code: 1
+  stdout:
+    contains:
+      - "'vep_include_consequence' is no longer supported"
+
+- name: test-snv-indels-filter-criteria-deprecated
+  tags:
+    - sanity
+    - snv-indels
+  command: >
+    snakemake
+    --snakefile includes/snv-indels/Snakefile
+    --workflow-profile test
+    --dry-run
+    --configfile test/data/config/snv-indels-vep-cache.json
+    --config pepfile=test/pep/chrM-trio.csv filter_criteria=filterfile.tsv
+  exit_code: 1
+  stdout:
+    contains:
+      - "'filter_criteria' is no longer supported, use 'inclusion_criteria' instead"
+# Test that the id_mapping script works if the filter criteria contain no transcript versions
+- name: test-id-mapping-no-transcript-version
+  tags:
+    - functional
+    - snv-indels
+  command: >
+    python3 includes/snv-indels/scripts/create_id_mapping.py
+    --inclusion-criteria test/data/config/inclusion_criteria.tsv test/data/reference/hamlet-ref.gtf
+  stdout:
+    contains:
+      - "ENSG00000228253\tMT-ATP8\tENST00000361851"
+
+# Test that the id_mapping script works if the filter criteria contain transcript versions
+- name: test-id-mapping-with-transcript-version
+  tags:
+    - functional
+    - snv-indels
+  command: >
+    bash -c "
+    echo -e 'transcript_id\tconsequence\tstart\tend\tframe' > filter.tsv;
+    echo ENST00000361851.1 >> filter.tsv;
+
+    python3 includes/snv-indels/scripts/create_id_mapping.py  \
+      --inclusion-criteria filter.tsv \
+      test/data/reference/hamlet-ref.gtf
+    "
+  stdout:
+    contains:
+      - "ENSG00000228253\tMT-ATP8\tENST00000361851"

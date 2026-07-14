@@ -25,11 +25,11 @@ rule align_reads:
         bai="{sample}/itd/{sample}.itd.bai",
     log:
         "log/align_reads.{sample}.txt",
-    params:
-        rg="@RG\\tID:{sample}\\tSM:{sample}",
-    threads: 3
     container:
         containers["bwa-0.7.17-samtools-1.3.1-picard-2.9.2"]
+    threads: 3
+    params:
+        rg="@RG\\tID:{sample}\\tSM:{sample}",
     shell:
         """
         bwa mem \
@@ -37,16 +37,16 @@ rule align_reads:
             -t {threads} \
             -L 2,2 \
             {input.fasta} \
-            {input.fq1:q} {input.fq2:q} 2> {log} \
-        | samtools view \
-            -Sbh \
-            -F 0x4 \
-            - \
-        | picard -Xmx4G SortSam \
-            I=/dev/stdin \
-            O={output.bam} \
-            SO=coordinate \
-            CREATE_INDEX=true
+            {input.fq1:q} {input.fq2:q} 2>{log} \
+            | samtools view \
+                -Sbh \
+                -F 0x4 \
+                - \
+            | picard -Xmx4G SortSam \
+                I=/dev/stdin \
+                O={output.bam} \
+                SO=coordinate \
+                CREATE_INDEX=true
         """
 
 
@@ -58,22 +58,22 @@ rule detect_itd_kmt2a:
     output:
         csv="{sample}/itd/{sample}.kmt2a.csv",
         bg_csv="{sample}/itd/{sample}.kmt2a.bg.csv",
+    log:
+        "log/detect_itd_kmt2a.{sample}.txt",
+    container:
+        containers["rose"]
     params:
         # Region of interest for kmt2a ~ exon 2-10 in transcript coordinates.
         trx_name=config["kmt2a_name"],
         start=config["kmt2a_start"],
         end=config["kmt2a_end"],
-    log:
-        "log/detect_itd_kmt2a.{sample}.txt",
-    container:
-        containers["rose"]
     shell:
         """
         rose-dt \
             -r {params.trx_name}:{params.start}-{params.end} \
             --bg-counts {output.bg_csv} \
             {input.ref} \
-            {input.bam} > {output.csv} 2> {log}
+            {input.bam} >{output.csv} 2>{log}
         """
 
 
@@ -94,7 +94,7 @@ rule plot_itd_kmt2a:
             --mode per-event \
             {input.csv} \
             {input.bg_csv} \
-            {output.png} 2> {log}
+            {output.png} 2>{log}
         """
 
 
@@ -107,22 +107,22 @@ rule detect_itd_flt3:
     output:
         csv="{sample}/itd/{sample}.flt3.csv",
         bg_csv="{sample}/itd/{sample}.flt3.bg.csv",
+    log:
+        "log/detect_itd_flt3.{sample}.txt",
+    container:
+        containers["rose"]
     params:
         # Region of interest for flt3 ~ exon 14-15 in transcript coordinates.
         trx_name=config["flt3_name"],
         start=config["flt3_start"],
         end=config["flt3_end"],
-    log:
-        "log/detect_itd_flt3.{sample}.txt",
-    container:
-        containers["rose"]
     shell:
         """
         rose-dt \
             -r {params.trx_name}:{params.start}-{params.end} \
             --bg-counts {output.bg_csv} \
             {input.ref} \
-            {input.bam} > {output.csv} 2> {log}
+            {input.bam} >{output.csv} 2>{log}
         """
 
 
@@ -139,11 +139,10 @@ rule plot_itd_flt3:
     shell:
         """
         rose-dt-plot.py \
-             --sample-id {wildcards.sample} \
-             --mode per-event \
-             {input.csv} \
-             {input.bg_csv}\
-             {output.png} 2> {log}
+            --sample-id {wildcards.sample} \
+            --mode per-event \
+            {input.csv} \
+            {input.bg_csv} {output.png} 2>{log}
         """
 
 
@@ -153,7 +152,7 @@ rule json_output:
         flt3_plot="{sample}/itd/{sample}.flt3.png",
         kmt2a_csv="{sample}/itd/{sample}.kmt2a.csv",
         kmt2a_plot="{sample}/itd/{sample}.kmt2a.png",
-        src=srcdir("scripts/json-output.py"),
+        src=workflow.source_path("scripts/json-output.py"),
     output:
         "{sample}/itd/itd-output.json",
     log:
@@ -166,5 +165,6 @@ rule json_output:
             {input.flt3_csv} \
             {input.flt3_plot} \
             {input.kmt2a_csv} \
-            {input.kmt2a_plot} > {output} 2> {log}
+            {input.kmt2a_plot} \
+            --sample {wildcards.sample} >{output} 2>{log}
         """

@@ -1,5 +1,17 @@
-Welcome to the documentation for HAMLET
-================================================
+====================
+HAMLET documentation
+====================
 
-This is currently a placeholder. You can see the  full documentation
-on the `HAMLET github page <https://github.com/LUMC/HAMLET/tree/v2.0.0>`_.
+
+.. toctree::
+   
+    installation
+    usage
+    background
+    issues
+    qc-seq
+    snv-indels
+    fusion
+    itd
+    expression
+    CHANGELOG 

@@ -6,6 +6,7 @@ rule all:
         merged_forward=[module_output.forward(sample) for sample in samples],
         merged_reverse=[module_output.reverse(sample) for sample in samples],
         multiqc="multiqc_qc_seq.html",
+        folder="multiqc_qc_seq_data",
 
 
 rule cutadapt:
@@ -17,14 +18,17 @@ rule cutadapt:
         fq1="{sample}/qc-seq/{sample}-R1.fq.gz",
         fq2="{sample}/qc-seq/{sample}-R2.fq.gz",
         json="{sample}/qc-seq/{sample}.cutadapt.json",
+    log:
+        stdout="log/cutadapt.{sample}.out",
+        stderr="log/cutadapt.{sample}.err",
+        pigz1="log/cutadapt.pigz1.{sample}.err",
+        pigz2="log/cutadapt.pigz2.{sample}.err",
+    container:
+        containers["cutadapt"]
+    threads: 8
     params:
         f_adapter=config["forward_adapter"],
         r_adapter=config["reverse_adapter"],
-    log:
-        "log/cutadapt.{sample}.txt",
-    threads: 8
-    container:
-        containers["cutadapt"]
     shell:
         """
         cutadapt \
@@ -37,8 +41,9 @@ rule cutadapt:
             --output={output.fq1} \
             --paired-output={output.fq2} \
             --json={output.json} \
-            <(pigz --decompress --stdout {input.fq1:q}) \
-            <(pigz --decompress --stdout {input.fq2:q}) > {log}
+            <(pigz --decompress --stdout {input.fq1:q} 2>{log.pigz1}) \
+            <(pigz --decompress --stdout {input.fq2:q} 2>{log.pigz2}) \
+            >{log.stdout} 2>{log.stderr}
         """
 
 
@@ -52,50 +57,54 @@ rule sequali:
     log:
         stdout="log/sequali.{sample}.out.txt",
         stderr="log/sequali.{sample}.err.txt",
-    threads: 4
     container:
         containers["sequali"]
+    threads: 4
     shell:
         """
-        mkdir -p $(dirname {output.json}) 2> {log.stderr} > {log.stdout}
+        mkdir -p $(dirname {output.json}) 2>{log.stderr} >{log.stdout}
 
         sequali \
             --outdir $(dirname {output.json}) \
             --json $(basename {output.json}) \
             --html $(basename {output.html}) \
             --threads {threads} \
-            {input.fq1} {input.fq2} 2>> {log.stderr} >> {log.stdout}
+            {input.fq1} {input.fq2} 2>>{log.stderr} >>{log.stdout}
         """
 
 
 rule multiqc:
     input:
         stats=module_output.multiqc_files,
-        config=srcdir("../../cfg/multiqc.yml"),
-    params:
-        filelist="multiqc_filelist.txt",
-        depth=2,
+        config=workflow.source_path("../../cfg/multiqc.yml"),
     output:
         html="multiqc_qc_seq.html",
+        folder=directory("multiqc_qc_seq_data"),
+        parquet="multiqc_qc_seq_data/multiqc.parquet",
+        filelist=temporary("multiqc_filelist_qc_seq.txt"),
     log:
         "log/qc_seq.multiqc.txt",
     container:
         containers["multiqc"]
+    params:
+        depth=2,
+        modules=multiqc_modules(),
     shell:
         """
-        rm -f {params.filelist}
+        rm -f {output.filelist}
 
         for fname in {input.stats}; do
-            echo $fname >> {params.filelist}
+            echo $fname >>{output.filelist}
         done
 
         multiqc \
-        --force \
-        --dirs \
-        --dirs-depth {params.depth} \
-        --fullnames \
-        --fn_as_s_name \
-        --file-list {params.filelist} \
-        --config {input.config} \
-        --filename {output.html} 2> {log}
+            --force \
+            --dirs \
+            --dirs-depth {params.depth} \
+            --fullnames \
+            --fn_as_s_name \
+            --file-list {output.filelist} \
+            --config {input.config} \
+            {params.modules} \
+            --filename {output.html} 2>{log}
         """

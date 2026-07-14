@@ -6,11 +6,9 @@
   command: >
     snakemake -n
     --snakefile Snakefile
-    --reason
-    --printshellcmds
-    --verbose
+    --workflow-profile test
     --configfile test/data/config/hamlet-dry.json
-    --config pepfile=test/pep/chrM-trio.csv
+    --config pepfile=test/pep/chrM-trio.csv background_samples=test/data/MO1-RNAseq-1-16714-multiqc.parquet
   stdout:
     contains:
       # The pipeline should create the final output files for TestSample1
@@ -25,6 +23,11 @@
       - "TestSample3/TestSample3.summary.json"
       - "TestSample3/hamlet_report.TestSample3.pdf"
       - "TestSample3/TestSample3.summary.json"
+      # Run the expression module
+      - "rule expression_json_output"
+      # Test that we pass all the report files for the PDF report
+      # To prevent issues with Snakemakes stupid caching
+      - "report/assets/img/lumc-logo.jpg"
 
     contains_regex:
       # The align_genes rule should use the output of the qc-seq module
@@ -39,17 +42,6 @@
     must_not_contain:
       - "rule generate_html_report:"
 
-# Singularity should be available
-- name: test-hamlet-sanity-singularity
-  tags:
-    - sanity
-    - hamlet
-  command: >
-    singularity --version
-  stdout:
-    contains_regex:
-      - "singularity(-ce)? version 3"
-
 # HAMLET should run without crashing on targetted RNAseq data, which gives no
 # results for most modules
 - name: test-hamlet-targetted-RNA
@@ -60,18 +52,55 @@
     bash -c "
     source test/helper.sh
 
-    snakemake -rp \
-      --snakefile Snakefile \
+    mkdir tmpdir-hamlet;
+    mv Snakefile common.smk includes scripts report cfg tmpdir-hamlet
+
+    snakemake \
+      --snakefile tmpdir-hamlet/Snakefile \
+      --workflow-profile test \
       --configfile test/data/config/hamlet.json \
-      --config pepfile=test/pep/targetted.csv \
-      --cores \
-      --verbose \
-      --use-singularity \
-      --singularity-args '--cleanenv --bind /tmp' \
-      --singularity-prefix '~/.singularity/cache/snakemake'
+      --config pepfile=test/pep/targetted.csv
     "
-    - path: MO1-RNAseq-1-16714/hamlet_report.SRR8615409.pdf
+  files:
+    - path: MO1-RNAseq-1-16714/hamlet_report.MO1-RNAseq-1-16714.pdf
     - path: "log/generate_report.MO1-RNAseq-1-16714.txt"
+    - path: multiqc_hamlet.html
+      contains:
+        # Test that MultiQC contains a section on de strandedness
+      - "RnaSeqMetrics Strand Mapping"
+    - path: multiqc_hamlet_data/picard_rnaseqmetrics_strand_plot.txt
+      contains:
+        # Test that most reads are the correct strand (sample is reverse stranded)
+        - "Sample\tCorrect\tIncorrect"
+        - "MO1-RNAseq-1-16714\t155.0\t5.0"
+
+    # Clean up itermediate MultiQC files for the modules
+    - path: multiqc_snv_indels.html
+      should_exist: False
+    - path: multiqc_snv_indels_data
+      should_exist: False
+    - path: multiqc_filelist_snv_indels.txt
+      should_exist: False
+
+    - path: multiqc_qc_seq.html
+      should_exist: False
+    - path: multiqc_qc_seq_data
+      should_exist: False
+    - path: multiqc_filelist_qc_seq.txt
+      should_exist: False
+
+    - path: multiqc_expression.html
+      should_exist: False
+    - path: multiqc_expression_data
+      should_exist: False
+    - path: multiqc_filelist_expression.txt
+      should_exist: False
+    - path: merged_expression_cell_types_mqc.tsv
+      should_exist: False
+    - path: merged_expression_stranded_mqc.tsv
+      should_exist: False
+    - path: merged_expression_unstranded_mqc.tsv
+      should_exist: False
 
 # HAMLET pipeline should run successfully with default settings
 - name: test-hamlet-chrM
@@ -85,21 +114,22 @@
     snakemake \
       --snakefile Snakefile \
       --configfile test/data/config/hamlet.json \
-      --config pepfile=test/pep/chrM_itd.csv \
-      --cores 1 \
-      --verbose \
-      --use-singularity \
-      --singularity-args '--cleanenv --bind /tmp' \
-      --singularity-prefix '~/.singularity/cache/snakemake' \
+      --config pepfile=test/pep/chrM_itd.csv background_samples=test/data/MO1-RNAseq-1-16714-multiqc.parquet \
+      --workflow-profile test \
       SRR8615409/hamlet_report.SRR8615409.html \
       SRR8615409/hamlet_report.SRR8615409.pdf \
       multiqc_hamlet.html
 
     # Test if the table scripts can still parse the summary.json file
-    
-    python3 utilities/hamlet_table.py variant SRR8615409/SRR8615409.summary.json > variant.tsv;
-    python3 utilities/hamlet_table.py fusion SRR8615409/SRR8615409.summary.json > fusion.tsv;
-    python3 utilities/hamlet_table.py itd --itd-gene flt3 SRR8615409/SRR8615409.summary.json > itd_flt3.tsv;
+
+    for section in variant fusion expression celltype aml_subtype; do
+      python3 utilities/hamlet_table.py ${section} SRR8615409/SRR8615409.summary.json > ${section}.tsv;
+    done
+
+    # Test the itd module
+
+    python3 utilities/hamlet_table.py itd --itd-gene flt3 SRR8615409/SRR8615409.summary.json > flt3.tsv;
+    python3 utilities/hamlet_table.py itd --itd-gene kmt2a SRR8615409/SRR8615409.summary.json > kmt2a.tsv;
     "
   files:
     # HAMLET pipeline should generate the final output files
@@ -107,6 +137,9 @@
       # This variant was blacklisted
       must_not_contain:
         - "ENST00000361899.2:c.175A>G"
+      contains:
+        # Test annotation Criteria that use a specific frame
+        - "FLT3 in frame"
     # Test log files
     - path: "log/create_summary.SRR8615409.txt"
     # FastQ files should be cleaned up when they are no longer needed
@@ -127,6 +160,12 @@
     - path: SRR8615409/hamlet_report.SRR8615409.html
       contains:
         - "BCR::ABL"
+        # Test that the chromosomal location of the variant is in the report (Table 7)
+        - "chr13:g.28034118_28034147dup"
+        # Test that the exon notation of the variant is in the report (Table 7)
+        - "14/24"
+        # Test that variant "ENST00000241453.1:c.1758_1787dup" from the known variants file is annotated with "known variant"
+        - "known variant"
       must_not_contain:
         - "FLT3::FLT3"
 
@@ -145,21 +184,59 @@
     # Test the hamlet_table.py utility script
     - path: variant.tsv
       contains:
-        - "sample\tgene\tCHROM\tPOS"
-        - "SRR8615409\tFLT3\tchr13\t28034117"
+        - "sample\tgene_name\thgvsc\thgvsp"
+        - "SRR8615409\tFLT3\tENST00000241453:c.1772_1801dup"
     - path: fusion.tsv
       contains:
-        - "sample\tbreakpoint1\tbreakpoint2"
-        - "SRR8615409\tchr22:23290413\tchr9:130854064"
-    - path: itd_flt3.tsv
+        - "sample\tgene1\tgene2"
+        - "SRR8615409\tBCR\tABL1"
+    - path: expression.tsv
+      contains:
+        - "sample\tMT-CO2-normalized"
+        - "SRR8615409\t1.0"
+    - path: celltype.tsv
+      contains:
+        - "sample\tASDC\tB Cells"
+        - "SRR8615409\t0.0\t0.54"
+    - path: aml_subtype.tsv
+      contains:
+        - "sample\tprediction\tpass_cutoff"
+        - "SRR8615409\tNotClassified\tFalse"
+    - path: flt3.tsv
       contains:
         - "sample\tboundary_type\tfuzziness"
         - "SRR8615409\tfuzzy-end\t1"
+    - path: kmt2a.tsv
+      contains:
+        - "sample\tboundary_type\tfuzziness"
+        - "SRR8615409\tfuzzy\t4"
     - path: "multiqc_hamlet.html"
       contains:
+        - "Cutadapt"
+        - "Sequali"
         - "VEP"
         - "STAR"
         - "Picard"
+        # Test that the sample names are present
+        - "SRR8615409"
+        - "MO1-RNAseq-1-16714"
+        # Custom MultiQC output from the expression module
+        - "mqc_expression_unstranded"
+      must_not_contain:
+        # Blacklisted MultiQC sections
+        - "sequali_sequence_duplication_levels"
+        - "sequali_sequence_counts"
+        - "sequali_top_overrepresented_sequences_table_read1"
+        - "sequali_top_overrepresented_sequences_table_read2"
+        - "sequali_adapter_content_from_overlap"
+        - "sift_summary"
+        - "polyphen_summary"
+        - "position_in_protein"
+    # Test that we remove the temporary folder from snv-indels
+    - path: "snv-indel-tmp"
+      should_exist: False
+    # Test the output of the expression module
+    - path: SRR8615409/expression/expression-output.json
 
 - name: lint-hamlet
   tags:
@@ -177,3 +254,46 @@
     - sanity
     - hamlet
   command: snakefmt --check .
+
+- name: black-hamlet
+  tags:
+    - sanity
+    - hamlet
+  command: black --check .
+
+- name: mypy-hamlet
+  tags:
+    - sanity
+    - hamlet
+  command: mypy --strict --ignore-missing-imports --explicit-package-bases --exclude create_summary.py --exclude test_report.py .
+
+- name: test-sample-with-space
+  tags:
+    - sanity
+    - hamlet
+  command: >
+    snakemake
+    --snakefile Snakefile
+    --workflow-profile test
+    --configfile test/data/config/hamlet-dry.json
+    --config pepfile=test/pep/invalid.csv
+  exit_code: 1
+  stderr:
+    contains:
+      - 'RuntimeError: Spaces in samples are not supported ("SRR 8615687")'
+
+- name: Create HAMLET rule graph
+  tags:
+    - dry-run
+    - hamlet
+  command: >
+    bash -c "
+      snakemake \
+      --snakefile Snakefile \
+      --workflow-profile test \
+      --configfile test/data/config/hamlet-dry.json \
+      --config pepfile=test/pep/chrM-trio.csv \
+      --rulegraph | dot -Tsvg > dag.svg
+    "
+  files:
+    - path: dag.svg

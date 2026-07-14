@@ -1,0 +1,69 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Schema of the output from the expression module for HAMLET",
+  "definitions": {
+    "expression": {
+      "description": "Top level object for the json output of the expression module",
+      "type": "object",
+     "additionalProperties": false,
+      "minProperties": 2,
+      "properties": {
+        "metadata": { "$ref": "#/definitions/metadata" },
+        "gene-expression": { "$ref": "#/definitions/gene-expression" },
+        "subtype": { "$ref": "#/definitions/subtype" },
+        "cell-types": { "$ref": "#/definitions/cell-types" }
+      }
+    },
+    "metadata": {
+      "description": "Metadata entry for the expression module",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "sample_name": { "type": "string" }
+      }
+    },
+    "gene-expression": {
+      "description": "Gene expression values for the genes of interest",
+      "type": "object",
+      "additionalProperties": { "$ref": "#/definitions/single_gene"}
+    },
+    "single_gene": {
+      "description": "Gene expression object for a single gene",
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 2,
+      "properties": {
+        "normalized": {"type": "number"},
+        "raw": {"type": "integer"}
+      }
+    },
+    "cell-types": {
+      "description": "Cell composition of the sample",
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 2,
+      "properties": {
+        "data": {
+          "type": "object",
+          "items": { "$ref": "#/definitions/cell_type_data"}
+        },
+        "plot": {"type": "string"}
+      }
+    },
+    "cell_type_data": {
+      "description": "Cell type proportions from seAMLess",
+      "type": "object",
+      "additionalProperties": { "type": "number"}
+    },
+    "subtype": {
+      "descrition": "Predicted AML subtype of the sample",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "minProperties": 1,
+  "type": "object",
+  "properties": {
+    "expression": { "$ref": "#/definitions/expression" }
+  }
+}

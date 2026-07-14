@@ -2,7 +2,7 @@
 
 <div class="keep-together">
   <div class="table-title">
-    <p>Table 7 | High-impact variants in genes of interest</p>
+    <p>High-impact variants in genes of interest</p>
   </div>
   <table class="table-wide" id="var-overview" style="margin-bottom: 2em;">
     <thead>
@@ -10,11 +10,9 @@
         <th>Gene</th>
         <th>HGVS description</th>
         <th>Database identifiers</th>
-        <th>Allele frequency</th>
-        <th>Hotspot</th>
-        <th>Ref</th>
-        <th>Alt</th>
-        <th>Total</th>
+        <th>VAF/<br/>Exon</th>
+        <th>Annotation</th>
+        <th>Ref/Alt<br/>(Total)</th>
       </tr>
     </thead>
     <tbody>
@@ -29,13 +27,11 @@
               {% if not geneloop.first %}
                 <tr>
               {% endif %}
-              <td{% if loop.last %} style="border-bottom: 1px solid #809ebf;"{% endif %} class="hgvs">{{ consequence.hgvsc }}<br/>{{ consequence.hgvsp }}</td>
+              <td{% if loop.last %} style="border-bottom: 1px solid #809ebf;"{% endif %} class="hgvs">{{ consequence.hgvsc | truncate(100, True, leeway=0)}}<br/>{{ consequence.hgvsp | truncate(100, True, leeway=0)}}<br/>{{ consequence.hgvsg | truncate(100, True, leeway=0)}}</td>
               <td{% if loop.last %} style="border-bottom: 1px solid #809ebf;"{% endif %}><small>{{ database_identifiers(item) | join(" ") }}</small></td>
-              <td{% if loop.last %} style="border-bottom: 1px solid #809ebf;"{% endif %}>{{ (item.FORMAT.AF | float * 100) | round(2) }}%</td>
-              <td{% if loop.last %} style="border-bottom: 1px solid #809ebf;"{% endif %}>{{ "yes" if item.is_in_hotspot else "no" }}</td>
-              <td{% if loop.last %} style="border-bottom: 2px solid #809ebf;{% endif %} white-space: nowrap">{{ ref_AD(item) }}</td>
-              <td{% if loop.last %} style="border-bottom: 2px solid #809ebf;{% endif %} white-space: nowrap">{{ alt_AD(item) | join(", ") }}</td>
-              <td{% if loop.last %} style="border-bottom: 2px solid #809ebf;{% endif %} white-space: nowrap">{{ item.FORMAT.DP }}</td>
+              <td{% if loop.last %} style="border-bottom: 1px solid #809ebf;"{% endif %}>{{ (item.FORMAT.AF | float * 100) | round(2) }}%<br/>{{ consequence.exon }}</td>
+              <td{% if loop.last %} style="border-bottom: 1px solid #809ebf;{% endif %} text-align: center;">{{ consequence.annotation }}</td>
+              <td{% if loop.last %} style="border-bottom: 1px solid #809ebf;{% endif %} white-space: nowrap; text-align: center;">{{ ref_AD(item) }}/{{ alt_AD(item) | join(", ") }}<br/>({{ item.FORMAT.DP }})</td>
             </tr>
           {% endfor %}
         {% endfor %}
@@ -46,7 +42,7 @@
 
 <div class="keep-together">
   <div class="table-title">
-    <p>Table 8 | Detected fusion genes</p>
+    <p>Detected fusion genes</p>
   </div>
   <table class="table-wide" id="fusion-overview" style="margin-bottom: 2em;">
     <thead>
@@ -60,9 +56,9 @@
       </tr>
     </thead>
     <tbody>
-      {% for item in modules.fusion %}
+      {% for item in modules.fusion.events %}
       <tr>
-        <td>{{ item.gene1}}::{{ item.gene2}}</td>
+        <td>{{ item.gene1}}::{{ item.gene2}} <br/> ({{ item.breakpoint1.split(':')[0] }}, {{ item.breakpoint2.split(':')[0]}})</td>
         <td>{{ item.type }}</td>
         <td class="text-right">{{ item.split_reads1 }}</td>
         <td class="text-right">{{ item.split_reads2 }}</td>
@@ -78,7 +74,7 @@
 
 <div class="keep-together">
   <div class="table-title">
-    <p>Table 9 | Detected reciprocal soft clip events</p>
+    <p>Detected tandem duplications</p>
   </div>
   <table class="table-wide" style="margin-bottom: 2em; width: 30%;">
     <thead>
@@ -99,3 +95,65 @@
     </tbody>
   </table>
 </div>
+
+{% set gene_expression = modules.expression.get('gene-expression') %}
+{% set subtype_prediction = modules.expression.subtype %}
+
+<div class="keep-together">
+  <div class="table-title">
+    <p>Cell type composition</p>
+  </div>
+  <figure>
+    <img src="{{ convert_img_to_base64(modules.expression.get('cell-types').get('plot')) }}">
+  </figure>
+</div>
+
+<div class="keep-together">
+  <div class="table-title">
+    <p>Subtype prediction</p>
+  </div>
+</div>
+<table class="table-wide" style="margin-bottom: 2em; width: 50%;" id="AMLmapR">
+  <thead>
+    <tr>
+      <th>Prediction</th>
+      <th>Above threshold</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>{{ subtype_prediction.prediction }}</td>
+      <td>{{ 'Yes' if subtype_prediction.pass_cutoff else 'No' }}</td>
+    </tr>
+  </tbody>
+</table>
+
+{% if gene_expression %}
+  <div class="keep-together">
+    <div class="table-title">
+    <p>Normalized gene expression levels</p>
+    </div>
+    <table class="table-wide" style="margin-bottom: 2em; width: 75%;" id="gene-expression">
+      <thead>
+        <tr>
+          <th>Gene</th>
+          <th class="text-right">Raw count</th>
+          <th class="text-right">Normalized expression</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for gene, results in gene_expression.items() %}
+        <tr>
+          <td>{{ gene }}</td>
+          <td class="text-right">{{ results.raw }}</td>
+          {% if results.normalized is none %}
+            <td class="text-right">None</td>
+          {% else %}
+            <td class="text-right">{{ results.normalized | round(2) }}</td>
+          {% endif %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endif %}

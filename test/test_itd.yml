@@ -4,9 +4,10 @@
     - dry-run
     - itd
   command: >
-    snakemake -n
+    snakemake
     --snakefile includes/itd/Snakefile
-    --printshellcmds
+    --workflow-profile test
+    --dry-run
     --configfile test/data/config/itd.json
     --config pepfile=test/pep/chrM-trio.csv
   stdout:
@@ -32,17 +33,17 @@
     contains_regex:
       - "bwa mem .*  'test/data/fastq/SRR8615409 chrM_1.fastq.gz' 'test/data/fastq/SRR8615409 chrM_2.fastq.gz'"
 
-
-# Singularity should be available
-- name: test-itd-sanity-singularity
+- name: test-itd-hamlet-config
   tags:
-    - sanity
+    - dry-run
     - itd
   command: >
-    singularity --version
-  stdout:
-    contains_regex:
-      - "singularity(-ce)? version 3"
+    snakemake
+    --snakefile includes/itd/Snakefile
+    --workflow-profile test
+    --dry-run
+    --configfile test/data/config/hamlet-dry.json
+    --config pepfile=test/pep/chrM-trio.csv
 
 # ITD pipeline should run successfully and actually create the specified files
 - name: test-itd
@@ -52,16 +53,11 @@
     - flt3
     - kmt2a
   command: >
-    snakemake -rp
+    snakemake
     --snakefile includes/itd/Snakefile
+    --workflow-profile test
     --configfile test/data/config/itd.json
     --config pepfile=test/pep/itd.csv
-    --cores
-    --notemp
-    --verbose
-    --use-singularity
-    --singularity-args '--cleanenv --bind /tmp'
-    --singularity-prefix '~/.singularity/cache/snakemake'
   files:
     # ITD pipeline should create a png of the detected repeat events for flt3
     - path: "SRR8615687/itd/SRR8615687.flt3.png"
@@ -123,16 +119,11 @@
     - functional
     - itd
   command: >
-    snakemake -rp
+    snakemake
     --snakefile includes/itd/Snakefile
+    --workflow-profile test
     --configfile test/data/config/itd.json
     --config pepfile=test/pep/chrM.csv
-    --cores
-    --notemp
-    --verbose
-    --use-singularity
-    --singularity-args '--cleanenv --bind /tmp'
-    --singularity-prefix '~/.singularity/cache/snakemake'
   files:
     # ITD pipeline should create the output files for kmt2a
     - path: "SRR8615409/itd/SRR8615409.kmt2a.png"
@@ -161,7 +152,7 @@
 - name: lint-itd
   tags:
     - sanity
-    - itd 
+    - itd
   command: >
     snakemake
     --lint
@@ -174,3 +165,30 @@
     - sanity
     - itd
   command: snakefmt --check includes/itd
+
+- name: black-itd
+  tags:
+    - sanity
+    - itd
+  command: black --check includes/itd
+
+- name: mypy-itd
+  tags:
+    - sanity
+    - itd
+  command: mypy --strict includes/itd/
+
+- name: test-itd-sample-with-space
+  tags:
+    - sanity
+    - itd
+  command: >
+    snakemake
+    --snakefile includes/itd/Snakefile
+    --workflow-profile test
+    --configfile test/data/config/itd.json
+    --config pepfile=test/pep/invalid.csv
+  exit_code: 1
+  stderr:
+    contains:
+      - 'RuntimeError: Spaces in samples are not supported ("SRR 8615687")'

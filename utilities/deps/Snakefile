@@ -1,30 +1,37 @@
 import os
 
-# TODO
-# - remove scrdir
-# - add option to specify output folder
+
+localrules:
+    copy_itd,
+    copy_expression_bed,
+    copy_arriba_database,
+    copy_report_genes,
+    copy_criteria_files,
+
+
 containers = {
-    "arriba": "docker://quay.io/biocontainers/arriba:2.4.0--h0033a41_2",
+    "arriba": "docker://quay.io/biocontainers/arriba:2.5.1--h87b9561_0",
     "hamlet-scripts": "docker://lumc/hamlet-scripts:0.3",
     "debian": "docker://debian:buster-slim",
     "samtools": "docker://quay.io/biocontainers/samtools:1.6--h244ad75_4",
     "ucsc-gtftogenepred": "docker://quay.io/biocontainers/ucsc-gtftogenepred:377--ha8a8165_5",
-    "star": "docker://quay.io/biocontainers/star:2.7.10b--h9ee0642_0",
-    "picard": "docker://quay.io/biocontainers/picard:2.27.4--hdfd78af_0",
-    "vep": "docker://quay.io/biocontainers/ensembl-vep:108.2--pl5321h4a94de4_0",
+    "star": "docker://quay.io/biocontainers/star:2.7.11b--h5ca1c30_5",
+    "picard": "docker://quay.io/biocontainers/picard:3.3.0--hdfd78af_0",
+    "vep": "docker://quay.io/biocontainers/ensembl-vep:115.2--pl5321h2a3209d_1",
     "zip": "docker://lumc/zip:3.0",
+    "seamless": "docker://quay.io/biocontainers/r-seamless:0.1.1--r44h3121a25_1",
 }
 
-VEP_RELEASE = 108
+VEP_RELEASE = 115
+ARRIBA_RELEASE = "v2.5.1"
 
 settings = {
-    "arriba": "docker://quay.io/biocontainers/arriba:2.4.0--h0033a41_2",
     "reference_url": "ftp://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/000/001/405/GCA_000001405.15_GRCh38/seqs_for_alignment_pipelines.ucsc_ids/GCA_000001405.15_GRCh38_no_alt_analysis_set.fna.gz",
     "reference_fai": "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/000/001/405/GCA_000001405.15_GRCh38/seqs_for_alignment_pipelines.ucsc_ids/GCA_000001405.15_GRCh38_no_alt_analysis_set.fna.fai",
     "refflat": "http://hgdownload.cse.ucsc.edu/goldenpath/hg38/database/refFlat.txt.gz",
     #'gtf': 'https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/genes/hg38.ensGene.gtf.gz'
     # "gtf": "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_41/gencode.v41.annotation.gtf.gz",
-    "gtf": "http://ftp.ensembl.org/pub/release-104/gtf/homo_sapiens/Homo_sapiens.GRCh38.104.gtf.gz",
+    "gtf": f"http://ftp.ensembl.org/pub/release-{VEP_RELEASE}/gtf/homo_sapiens/Homo_sapiens.GRCh38.{VEP_RELEASE}.gtf.gz",
     "vep_cache": f"https://ftp.ensembl.org/pub/release-{VEP_RELEASE}/variation/indexed_vep_cache/homo_sapiens_merged_vep_{VEP_RELEASE}_GRCh38.tar.gz",
     # See https://data.broadinstitute.org/Trinity/CTAT_RESOURCE_LIB/
 }
@@ -44,42 +51,43 @@ rule all:
         fai=reference_fai,
         fasta_dict=reference_dict,
         refflat="ucsc_gencode.refFlat",
-        bed_variant_hotspots="hotspots_genome.bed",
         vep_cache="homo_sapiens_merged",
         expression_gtf=gtf_renamed,
         itd_folder="itd",
         genome_fasta=reference_fname,
         star_index="star-index",
-        ref_id_mapping="id_mappings.tsv",
+        inclusion_criteria="inclusion_criteria.tsv",
+        annotation_criteria="annotation_criteria.tsv",
+        known_variants="known_variants.tsv",
         rrna_refflat="ucsc_rrna.refFlat",
-        blacklist="blacklist.txt",
-        call_regions="call_regions.bed",
-        arriba="arriba/protein_domains_hg38_GRCh38_v2.4.0.gff3",
+        arriba=f"arriba/protein_domains_hg38_GRCh38_{ARRIBA_RELEASE}.gff3",
         arriba_report_genes="arriba/report_genes.txt",
+        expression_bed="expression/regions.bed",
+        seamless="expression/seamless_meta.csv",
 
 
 rule download_reference:
     output:
         fasta=reference_fname,
-    params:
-        url=settings["reference_url"],
     singularity:
         containers["hamlet-scripts"]
+    params:
+        url=settings["reference_url"],
     shell:
         """
-        rm -f {output.fasta}.gz &&
-        wget {params.url} &&
-        gzip -dc {output.fasta}.gz > {output.fasta}
+        rm -f {output.fasta}.gz \
+            && wget {params.url} \
+            && gzip -d {output.fasta}.gz
         """
 
 
 rule download_fai:
     output:
         reference_fai,
-    params:
-        settings["reference_fai"],
     singularity:
         containers["hamlet-scripts"]
+    params:
+        settings["reference_fai"],
     shell:
         """
         wget {params} -O {output}
@@ -88,30 +96,68 @@ rule download_fai:
 
 rule download_gtf:
     output:
-        gtf_file,
-    params:
-        settings["gtf"],
+        temporary(gtf_file),
     singularity:
         containers["hamlet-scripts"]
+    params:
+        settings["gtf"],
     shell:
         """
-        wget {params} &&
-        gunzip {output}.gz
+        wget {params} \
+            && gzip -d {output}.gz
+        """
+
+
+rule download_seamless_data:
+    output:
+        seamless=temporary("expression/seAMLessData_0.1.0.tar.gz"),
+    singularity:
+        containers["hamlet-scripts"]
+    params:
+        url="https://eonurk.github.io/drat/src/contrib/seAMLessData_0.1.0.tar.gz",
+    shell:
+        """
+        mkdir -p $(dirname {output.seamless})
+        wget {params.url} \
+            --output-document {output.seamless}
+        """
+
+
+rule split_seamless:
+    input:
+        seamless="expression/seAMLessData_0.1.0.tar.gz",
+        src=workflow.source_path("scripts/split_rda.R"),
+    output:
+        expression="expression/seamless_expr.csv",
+        metadata="expression/seamless_meta.csv",
+        rda=temporary("seAMLessData/data/scRef.rda"),
+    singularity:
+        containers["seamless"]
+    shell:
+        """
+        # Extract the rda file
+        tar -xvkf {input.seamless} {output.rda}
+
+        # Split the .rda file
+        Rscript {input.src} \
+            {output.rda} \
+            {output.expression} \
+            {output.metadata}
         """
 
 
 rule rewrite_gtf:
-    """ Add the 'chr' prefix to the chromosome names """
+    """Add the 'chr' prefix to the chromosome names"""
     input:
         gtf=rules.download_gtf.output,
-        rewrite=srcdir("scripts/rewrite-gtf.py"),
+        rewrite=workflow.source_path("scripts/rewrite-gtf.py"),
     output:
         gtf=gtf_renamed,
     singularity:
         containers["hamlet-scripts"]
     shell:
         """
-        {input.rewrite} {input.gtf} > {output.gtf}
+        python3 {input.rewrite} {input.gtf} >{output.gtf}
         """
 
 
@@ -132,12 +178,12 @@ rule create_star_index:
     input:
         fasta=rules.download_reference.output.fasta,
         gtf=rules.rewrite_gtf.output.gtf,
-    params:
-        overhang=149,
     output:
         directory("star-index"),
     singularity:
         containers["star"]
+    params:
+        overhang=149,
     shell:
         """
         rm -rf {output}
@@ -171,58 +217,38 @@ rule create_refflat:
 rule rewrite_refflat:
     input:
         gtf=rules.create_refflat.output,
-        scr=srcdir("scripts/rewrite-refflat.py"),
+        scr=workflow.source_path("scripts/rewrite-refflat.py"),
     output:
         "ucsc_gencode.refFlat",
     singularity:
         containers["hamlet-scripts"]
     shell:
         """
-        {input.scr} {input.gtf} > {output}
+        python3 {input.scr} {input.gtf} >{output}
         """
 
 
-rule create_id_mappings:
+rule copy_criteria_files:
     input:
-        srcdir("small-files/id_mappings.tsv"),
+        filter=workflow.source_path("small-files/inclusion_criteria.tsv"),
+        annotation=workflow.source_path("small-files/annotation_criteria.tsv"),
+        known_variants=workflow.source_path("small-files/known_variants.tsv"),
     output:
-        "id_mappings.tsv",
+        filter="inclusion_criteria.tsv",
+        annotation="annotation_criteria.tsv",
+        known_variants="known_variants.tsv",
     singularity:
         containers["hamlet-scripts"]
     shell:
         """
-        cp {input} {output}
-        """
-
-
-rule create_blacklist:
-    input:
-        srcdir("small-files/blacklist.txt"),
-    output:
-        "blacklist.txt",
-    singularity:
-        containers["hamlet-scripts"]
-    shell:
-        """
-        cp {input} {output}
-        """
-
-
-rule create_call_region:
-    input:
-        srcdir("small-files/call_regions.bed"),
-    output:
-        "call_regions.bed",
-    singularity:
-        containers["hamlet-scripts"]
-    shell:
-        """
-        cp {input} {output}
+        cp {input.filter} {output.filter}
+        cp {input.annotation} {output.annotation}
+        cp {input.known_variants} {output.known_variants}
         """
 
 
 rule create_rRNA_refflat:
-    """ Taken from https://gist.github.com/b8307038/55fb526e72141fac9f0aa2bc0e1f5997 """
+    """Taken from https://gist.github.com/b8307038/55fb526e72141fac9f0aa2bc0e1f5997"""
     input:
         ref_dict=rules.create_dict.output,
         gtf=rules.rewrite_gtf.output,
@@ -232,41 +258,27 @@ rule create_rRNA_refflat:
         containers["hamlet-scripts"]
     shell:
         """
-
         # Include SQ headers to match the reference
-        grep "^@SQ" {input.ref_dict} | cut -f 1,2,3 > {output.refflat}
+        grep "^@SQ" {input.ref_dict} | cut -f 1,2,3 >{output.refflat}
 
         # Pattern to find rebozyme transcripts
         ribozyme='gene_biotype "rRNA"\|gene_biotype "Mt_rRNA"\|gene_biotype "Mt_tRNA"\|gene_biotype "ribozyme"'
         # Intervals for rRNA transcripts
-        grep "$ribozyme" {input.gtf} | \
-        awk '$3 == "gene"' | \
-        cut -f1,4,5,7,9 | \
-        perl -lane '
+        grep "$ribozyme" {input.gtf} \
+            | awk '$3 == "gene"' \
+            | cut -f1,4,5,7,9 \
+            | perl -lane '
             /gene_id "([^"]+)"/ or die "no gene_id on $.";
             print join "\t", (@F[0,1,2,3], $1)
-        ' | \
-        sort -k1V -k2n -k3n >> {output.refflat}
+        ' \
+            | sort -k1V -k2n -k3n >>{output.refflat}
         """
 
 
-rule genome_hotspots:
-    input:
-        srcdir("small-files/hotspots_genome.bed"),
-    output:
-        "hotspots_genome.bed",
-    singularity:
-        containers["hamlet-scripts"]
-    shell:
-        """
-        cp {input} {output}
-        """
-
-
-rule create_report_genes:
+rule copy_report_genes:
     input:
         folder="arriba",
-        genes=srcdir("small-files/report_genes.txt"),
+        genes=workflow.source_path("small-files/report_genes.txt"),
     output:
         "arriba/report_genes.txt",
     singularity:
@@ -278,13 +290,13 @@ rule create_report_genes:
 
 
 rule download_vep_cache:
+    output:
+        temporary(vep_cache_fname),
+    singularity:
+        containers["hamlet-scripts"]
     params:
         ftp=settings["vep_cache"],
         fname=vep_cache_fname,
-    output:
-        vep_cache_fname,
-    singularity:
-        containers["hamlet-scripts"]
     shell:
         """
         wget {params.ftp}
@@ -307,28 +319,48 @@ rule unpack_vep_cache:
 rule copy_itd:
     """All the needed files are in small-files/itd, so we just copy them"""
     input:
-        fasta=srcdir("small-files/itd/itd_genes.fa"),
+        fasta=workflow.source_path("small-files/itd/itd_genes.fa"),
+        index_files=[
+            workflow.source_path(f"small-files/itd/itd_genes.fa.{ext}")
+            for ext in ["amb", "ann", "bwt", "pac", "sa"]
+        ],
     output:
         itd=directory("itd"),
     singularity:
         containers["hamlet-scripts"]
     shell:
         """
-        in_dir=$(dirname {input.fasta})
-
         mkdir -p {output.itd}
 
-        cp -v $in_dir/* {output.itd}
+        cp -v {input} {output.itd}
         """
 
 
-rule arriba_database:
+rule copy_expression_bed:
+    """Copy the small bed file with MECOM regions to quantify"""
+    input:
+        bed=workflow.source_path("small-files/expression.bed"),
+    output:
+        bed="expression/regions.bed",
+    singularity:
+        containers["hamlet-scripts"]
+    shell:
+        """
+        dir=$(dirname {output.bed})
+
+        mkdir -p ${{dir}}
+
+        cp {input.bed} {output.bed}
+        """
+
+
+rule copy_arriba_database:
     output:
         folder=directory("arriba"),
-        blacklist="arriba/blacklist_hg38_GRCh38_v2.4.0.tsv.gz",
-        known_fusions="arriba/known_fusions_hg38_GRCh38_v2.4.0.tsv.gz",
-        cytobands="arriba/cytobands_hg38_GRCh38_v2.4.0.tsv",
-        protein_domains="arriba/protein_domains_hg38_GRCh38_v2.4.0.gff3",
+        blacklist=f"arriba/blacklist_hg38_GRCh38_{ARRIBA_RELEASE}.tsv.gz",
+        known_fusions=f"arriba/known_fusions_hg38_GRCh38_{ARRIBA_RELEASE}.tsv.gz",
+        cytobands=f"arriba/cytobands_hg38_GRCh38_{ARRIBA_RELEASE}.tsv",
+        protein_domains=f"arriba/protein_domains_hg38_GRCh38_{ARRIBA_RELEASE}.gff3",
     singularity:
         containers["arriba"]
     shell:

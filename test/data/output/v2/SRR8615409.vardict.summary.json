@@ -20,89 +20,94 @@
     "sample_name": "SRR8615409"
   },
   "modules": {
-    "fusion": [
-      {
-        "breakpoint1": "chr22:23290413",
-        "breakpoint2": "chr9:130854064",
-        "closest_genomic_breakpoint1": null,
-        "closest_genomic_breakpoint2": null,
-        "confidence": "high",
-        "coverage1": 3,
-        "coverage2": 9,
-        "direction1": "downstream",
-        "direction2": "upstream",
-        "discordant_mates": 0,
-        "filters": null,
-        "fusion_transcript": "AGCTTCTCCCTGACATCCGTGGAGCTGCAGATGCTGACCAACTCGTGTGTGAAACTCCAGACTGTCCACAGCATTCCGCTGACCATCAATAAGGAAG___ATGATGAGTCTCCGGGGCTCTATGGGTTTCTGAATGTCATCGTCCACTCAGCCACTGGATTTAAGCAGAGTTCAA|AAGCCCTTCAGCGGCCAGTAGCATCTGACTTTGAGCCTCAGGGTCTGAGTGAAGCCGCTCGTTGGAACTCCAAGGAAAACCTTCTCGCTGGACCCAGTGAAAATGACCCCAACCTTTTCGTTGCACTGTATGATTTTGTGGCCAGTGGAGATAACACTCTAAGCATAACTAAAG___GTGAAAAGCTCCGGG",
-        "gene1": "BCR",
-        "gene2": "ABL1",
-        "gene_id1": "ENSG00000186716",
-        "gene_id2": "ENSG00000097007",
-        "peptide_sequence": "SFSLTSVELQMLTNSCVKLQTVHSIPLTINKEDDESPGLYGFLNVIVHSATGFKQSS|kALQRPVASDFEPQGLSEAARWNSKENLLAGPSENDPNLFVALYDFVASGDNTLSITKGEKLR",
-        "plot": "SRR8615409/fusion/arriba/plots/fusion-1.png",
-        "read_identifiers": [
-          "BCR-ABL1-60",
-          "BCR-ABL1-76",
-          "BCR-ABL1-18",
-          "BCR-ABL1-4"
-        ],
-        "reading_frame": "in-frame",
-        "retained_protein_domains": "Bcr-Abl_oncoprotein_oligomerisation_domain(100%),C2_domain(16%),PH_domain(100%),RhoGEF_domain(100%)|F-actin_binding(100%),Protein_kinase_domain(100%),SH2_domain(100%),SH3_domain(100%)",
-        "site1": "CDS/splice-site",
-        "site2": "CDS/splice-site",
-        "split_reads1": 2,
-        "split_reads2": 2,
-        "strand1(gene/fusion)": "+/+",
-        "strand2(gene/fusion)": "+/+",
-        "tags": "Mitelman",
-        "transcript_id1": "ENST00000305877",
-        "transcript_id2": "ENST00000372348",
-        "type": "translocation"
-      },
-      {
-        "breakpoint1": "chr13:28034118",
-        "breakpoint2": "chr13:28034147",
-        "closest_genomic_breakpoint1": null,
-        "closest_genomic_breakpoint2": null,
-        "confidence": "medium",
-        "coverage1": 2014,
-        "coverage2": 2014,
-        "direction1": "upstream",
-        "direction2": "downstream",
-        "discordant_mates": 0,
-        "filters": {
-          "duplicates": 132,
-          "low_entropy": 9
+    "fusion": {
+      "events": [
+        {
+          "breakpoint1": "chr22:23290413",
+          "breakpoint2": "chr9:130854064",
+          "closest_genomic_breakpoint1": null,
+          "closest_genomic_breakpoint2": null,
+          "confidence": "high",
+          "coverage1": 3,
+          "coverage2": 9,
+          "direction1": "downstream",
+          "direction2": "upstream",
+          "discordant_mates": 0,
+          "filters": null,
+          "fusion_transcript": "AGCTTCTCCCTGACATCCGTGGAGCTGCAGATGCTGACCAACTCGTGTGTGAAACTCCAGACTGTCCACAGCATTCCGCTGACCATCAATAAGGAAG___ATGATGAGTCTCCGGGGCTCTATGGGTTTCTGAATGTCATCGTCCACTCAGCCACTGGATTTAAGCAGAGTTCAA|AAGCCCTTCAGCGGCCAGTAGCATCTGACTTTGAGCCTCAGGGTCTGAGTGAAGCCGCTCGTTGGAACTCCAAGGAAAACCTTCTCGCTGGACCCAGTGAAAATGACCCCAACCTTTTCGTTGCACTGTATGATTTTGTGGCCAGTGGAGATAACACTCTAAGCATAACTAAAG___GTGAAAAGCTCCGGG",
+          "gene1": "BCR",
+          "gene2": "ABL1",
+          "gene_id1": "ENSG00000186716",
+          "gene_id2": "ENSG00000097007",
+          "peptide_sequence": "SFSLTSVELQMLTNSCVKLQTVHSIPLTINKEDDESPGLYGFLNVIVHSATGFKQSS|kALQRPVASDFEPQGLSEAARWNSKENLLAGPSENDPNLFVALYDFVASGDNTLSITKGEKLR",
+          "plot": "report/assets/img/Myeloblast_logo.png",
+          "read_identifiers": [
+            "BCR-ABL1-60",
+            "BCR-ABL1-76",
+            "BCR-ABL1-18",
+            "BCR-ABL1-4"
+          ],
+          "reading_frame": "in-frame",
+          "retained_protein_domains": "Bcr-Abl_oncoprotein_oligomerisation_domain(100%),C2_domain(16%),PH_domain(100%),RhoGEF_domain(100%)|F-actin_binding(100%),Protein_kinase_domain(100%),SH2_domain(100%),SH3_domain(100%)",
+          "site1": "CDS/splice-site",
+          "site2": "CDS/splice-site",
+          "split_reads1": 2,
+          "split_reads2": 2,
+          "strand1(gene/fusion)": "+/+",
+          "strand2(gene/fusion)": "+/+",
+          "tags": "Mitelman",
+          "transcript_id1": "ENST00000305877",
+          "transcript_id2": "ENST00000372348",
+          "type": "translocation"
         },
-        "fusion_transcript": "TCCTGGTCAAGTGCTGTGCATACAATTCCCTTGGCACATCTTGTGAGACGATCCTTTTAAACTCTCCAG___GCCCCTTCCCTTTCATCCAAGACAACATCTCATTCTATGCAACAATTGGTGTTTGTCTCCTCTTCATTGTCGTTTTAACCCTGCTAATTTGTCACAAGTACAAAAAG___CAATTTAGGTATGAAAGCCAGCTACAGATGGTACAGGTGACCGGCTCCTCAGATAATGAGTACTTCTACGTTGATTTCAGAGAATATGAATATGATC|ACGTTGATTTCAGAGAATATGAATATGATCTCAAATGGGAGTTTCCAAGAGAAAATTTAGAGTTTG___GGAAGGTACTAGGATCAGGTGCTTTTGGAAAAGTGATGA...ATTAGCAAAACAGGAGTCTCAATCCAGGTTGCCGTCAAAATGCTGAAAG___AAAAAGCAGACAGCTCTGAAAGAGAGGCACTCATGTCAGAACTCAAGATGATGACCCAGCTGGGAAGCCACGAGAATATTGTGAACCTGCTGGGGGCGTGCACACTGTCAG___GACCAATTTACTTGATTTTTGAATACTGTTGCTATGGTGATCTTCTCAACTATCTAAGAAGTAAAAGAGAAAAATTTCACAGGACTTGGACAGAGATTTTCAAGGAACACAATTTCAGTTTTT",
-        "gene1": "FLT3",
-        "gene2": "FLT3",
-        "gene_id1": "ENSG00000122025",
-        "gene_id2": "ENSG00000122025",
-        "peptide_sequence": "LVKCCAYNSLGTSCETILLNSPGPFPFIQDNISFYATIGVCLLFIVVLTLLICHKYKKQFRYESQLQMVQVTGSSDNEYFYVDFREYEYD|hVDFREYEYDLKWEFPRENLEFGKVLGSGAFGKVM",
-        "plot": "SRR8615409/fusion/arriba/plots/fusion-2.png",
-        "read_identifiers": [
-          "SRR8615687.47460344",
-          "SRR8615687.47460370",
-          "SRR8615687.47456077"
-        ],
-        "reading_frame": "in-frame",
-        "retained_protein_domains": "Immunoglobulin_domain(100%)|Protein_kinase_domain(100%)",
-        "site1": "CDS",
-        "site2": "CDS",
-        "split_reads1": 224,
-        "split_reads2": 231,
-        "strand1(gene/fusion)": "-/-",
-        "strand2(gene/fusion)": "-/-",
-        "tags": null,
-        "transcript_id1": "ENST00000241453",
-        "transcript_id2": "ENST00000241453",
-        "type": "duplication/ITD"
+        {
+          "breakpoint1": "chr13:28034118",
+          "breakpoint2": "chr13:28034147",
+          "closest_genomic_breakpoint1": null,
+          "closest_genomic_breakpoint2": null,
+          "confidence": "medium",
+          "coverage1": 2014,
+          "coverage2": 2014,
+          "direction1": "upstream",
+          "direction2": "downstream",
+          "discordant_mates": 0,
+          "filters": {
+            "duplicates": 132,
+            "low_entropy": 9
+          },
+          "fusion_transcript": "TCCTGGTCAAGTGCTGTGCATACAATTCCCTTGGCACATCTTGTGAGACGATCCTTTTAAACTCTCCAG___GCCCCTTCCCTTTCATCCAAGACAACATCTCATTCTATGCAACAATTGGTGTTTGTCTCCTCTTCATTGTCGTTTTAACCCTGCTAATTTGTCACAAGTACAAAAAG___CAATTTAGGTATGAAAGCCAGCTACAGATGGTACAGGTGACCGGCTCCTCAGATAATGAGTACTTCTACGTTGATTTCAGAGAATATGAATATGATC|ACGTTGATTTCAGAGAATATGAATATGATCTCAAATGGGAGTTTCCAAGAGAAAATTTAGAGTTTG___GGAAGGTACTAGGATCAGGTGCTTTTGGAAAAGTGATGA...ATTAGCAAAACAGGAGTCTCAATCCAGGTTGCCGTCAAAATGCTGAAAG___AAAAAGCAGACAGCTCTGAAAGAGAGGCACTCATGTCAGAACTCAAGATGATGACCCAGCTGGGAAGCCACGAGAATATTGTGAACCTGCTGGGGGCGTGCACACTGTCAG___GACCAATTTACTTGATTTTTGAATACTGTTGCTATGGTGATCTTCTCAACTATCTAAGAAGTAAAAGAGAAAAATTTCACAGGACTTGGACAGAGATTTTCAAGGAACACAATTTCAGTTTTT",
+          "gene1": "FLT3",
+          "gene2": "FLT3",
+          "gene_id1": "ENSG00000122025",
+          "gene_id2": "ENSG00000122025",
+          "peptide_sequence": "LVKCCAYNSLGTSCETILLNSPGPFPFIQDNISFYATIGVCLLFIVVLTLLICHKYKKQFRYESQLQMVQVTGSSDNEYFYVDFREYEYD|hVDFREYEYDLKWEFPRENLEFGKVLGSGAFGKVM",
+          "plot": "report/assets/img/Myeloblast_logo.png",
+          "read_identifiers": [
+            "SRR8615687.47460344",
+            "SRR8615687.47460370",
+            "SRR8615687.47456077"
+          ],
+          "reading_frame": "in-frame",
+          "retained_protein_domains": "Immunoglobulin_domain(100%)|Protein_kinase_domain(100%)",
+          "site1": "CDS",
+          "site2": "CDS",
+          "split_reads1": 224,
+          "split_reads2": 231,
+          "strand1(gene/fusion)": "-/-",
+          "strand2(gene/fusion)": "-/-",
+          "tags": null,
+          "transcript_id1": "ENST00000241453",
+          "transcript_id2": "ENST00000241453",
+          "type": "duplication/ITD"
+        }
+      ],
+      "metadata": {
+        "sample_name": "SRR8615409"
       }
-    ],
+    },
     "itd": {
       "flt3": {
-        "path": "/data/lumc/test/HAMLET-6048/test-hamlet-chrM/SRR8615409/itd/SRR8615409.flt3.png",
+        "path": "report/assets/img/Myeloblast_logo.png",
         "table": [
           {
             "boundary_type": "fuzzy-end",
@@ -140,7 +145,7 @@
         ]
       },
       "kmt2a": {
-        "path": "/data/lumc/test/HAMLET-6048/test-hamlet-chrM/SRR8615409/itd/SRR8615409.kmt2a.png",
+        "path": "report/assets/img/Myeloblast_logo.png",
         "table": [
           {
             "boundary_type": "fuzzy",
@@ -161,6 +166,9 @@
             ]
           }
         ]
+      },
+      "metadata": {
+        "sample_name": "SRR8615409"
       }
     },
     "snv_indels": {
@@ -228,7 +236,6 @@
             "end": 8566,
             "id": ".",
             "input": "chrM\t8566\t.\tA\tG\t151\tPASS\tSAMPLE=SRR8615409;TYPE=SNV;DP=27;END=8566;VD=27;AF=1;BIAS=0:2;REFBIAS=0:0;VARBIAS=14:13;PMEAN=28.7;PSTD=1;QUAL=31.8;QSTD=1;SBF=1;ODDRATIO=0;MQ=255;SN=5.75;HIAF=1.0000;ADJAF=0.1111;SHIFT3=0;MSI=1;MSILEN=1;NM=2.9;HICNT=23;HICOV=23;LSEQ=CTTCATTCATTGCCCCCACA;RSEQ=TCCTAGGCCTACCCGCCGCA;DUPRATE=0;SPLITREAD=0;SPANPAIR=0\tGT:DP:VD:AD:AF:RD:ALD\t1/1:27:27:0,27:1:0,0:14,13",
-            "is_in_hotspot": false,
             "most_severe_consequence": "missense_variant",
             "seq_region_name": "MT",
             "start": 8566,
@@ -245,6 +252,7 @@
                 "consequence_terms": [
                   "missense_variant"
                 ],
+                "exon":"1/1",
                 "gene_id": "ENSG00000198899",
                 "hgvsc": "ENST00000361899.2:c.40A>G",
                 "hgvsp": "ENSP00000354632.2:p.Ile14Val",
@@ -333,7 +341,6 @@
             "end": 8701,
             "id": ".",
             "input": "chrM\t8701\t.\tA\tG\t199\tPASS\tSAMPLE=SRR8615409;TYPE=SNV;DP=48;END=8701;VD=46;AF=0.9583;BIAS=0:2;REFBIAS=0:2;VARBIAS=18:28;PMEAN=27.6;PSTD=1;QUAL=36.2;QSTD=1;SBF=0.52128;ODDRATIO=0;MQ=255;SN=45;HIAF=0.9574;ADJAF=0.0208;SHIFT3=1;MSI=2;MSILEN=1;NM=2.6;HICNT=45;HICOV=47;LSEQ=TAACCTCAAAACAAATGATA;RSEQ=CCATACACAACACTAAAGGA;DUPRATE=0;SPLITREAD=0;SPANPAIR=0\tGT:DP:VD:AD:AF:RD:ALD\t1/1:48:46:2,46:0.9583:0,2:18,28",
-            "is_in_hotspot": true,
             "most_severe_consequence": "missense_variant",
             "seq_region_name": "MT",
             "start": 8701,
@@ -350,10 +357,13 @@
                 "consequence_terms": [
                   "missense_variant"
                 ],
+                "exon":"1/1",
                 "gene_id": "ENSG00000198899",
                 "hgvsc": "ENST00000361899.2:c.175A>G",
                 "hgvsp": "ENSP00000354632.2:p.Thr59Ala",
+                "hgvsg": "chrM:g.8701A>G",
                 "impact": "MODERATE",
+                "annotation": "Hotspot",
                 "polyphen_prediction": "benign",
                 "polyphen_score": 0.005,
                 "protein_end": 59,
@@ -428,7 +438,6 @@
             "end": 8860,
             "id": ".",
             "input": "chrM\t8860\t.\tA\tG\t123\tPASS\tSAMPLE=SRR8615409;TYPE=SNV;DP=13;END=8860;VD=13;AF=1;BIAS=0:2;REFBIAS=0:0;VARBIAS=10:3;PMEAN=20.8;PSTD=1;QUAL=33.5;QSTD=1;SBF=1;ODDRATIO=0;MQ=255;SN=5.5;HIAF=1.0000;ADJAF=0.1538;SHIFT3=0;MSI=1;MSILEN=1;NM=2.8;HICNT=11;HICOV=11;LSEQ=CCATCCCCTTATGAGCGGGC;RSEQ=CAGTGATTATAGGCTTTCGC;DUPRATE=0;SPLITREAD=0;SPANPAIR=0\tGT:DP:VD:AD:AF:RD:ALD\t1/1:13:13:0,13:1:0,0:10,3",
-            "is_in_hotspot": true,
             "most_severe_consequence": "missense_variant",
             "seq_region_name": "MT",
             "start": 8860,
@@ -445,10 +454,12 @@
                 "consequence_terms": [
                   "missense_variant"
                 ],
+                "exon":"1/1",
                 "gene_id": "ENSG00000198899",
                 "hgvsc": "ENST00000361899.2:c.334A>G",
                 "hgvsp": "ENSP00000354632.2:p.Thr112Ala",
                 "impact": "MODERATE",
+                "annotation": "Hotspot",
                 "polyphen_prediction": "benign",
                 "polyphen_score": 0.003,
                 "protein_end": 112,
@@ -510,7 +521,6 @@
             "end": 8390,
             "id": ".",
             "input": "chrM\t8390\t.\tT\tA\t166\tPASS\tSAMPLE=SRR8615409;TYPE=SNV;DP=25;END=8390;VD=25;AF=1;BIAS=0:1;REFBIAS=0:0;VARBIAS=24:1;PMEAN=8.8;PSTD=1;QUAL=35.8;QSTD=1;SBF=1;ODDRATIO=0;MQ=255;SN=24;HIAF=1.0000;ADJAF=0.12;SHIFT3=0;MSI=2;MSILEN=1;NM=4.2;HICNT=24;HICOV=24;LSEQ=CCCAACTAAATACTACCGTA;RSEQ=GGCCCACCATAATTACCCCC;DUPRATE=0;SPLITREAD=0;SPANPAIR=0\tGT:DP:VD:AD:AF:RD:ALD\t1/1:25:25:0,25:1:0,0:24,1",
-            "is_in_hotspot": true,
             "most_severe_consequence": "stop_gained",
             "seq_region_name": "MT",
             "start": 8390,
@@ -527,10 +537,12 @@
                 "consequence_terms": [
                   "stop_gained"
                 ],
+                "exon":"1/1",
                 "gene_id": "ENSG00000228253",
                 "hgvsc": "ENST00000361851.1:c.25T>A",
                 "hgvsp": "ENSP00000355265.1:p.Trp9Ter",
                 "impact": "HIGH",
+                "annotation": "Hotspot",
                 "protein_end": 9,
                 "protein_start": 9,
                 "strand": 1,
@@ -540,6 +552,9 @@
             ]
           }
         ]
+      },
+      "metadata": {
+        "sample_name": "SRR8615409"
       },
       "stats": {
         "aln": {
@@ -761,6 +776,57 @@
             "num_tolerated_variants": 4
           }
         }
+      }
+    },
+    "expression": {
+      "cell-types": {
+        "data": {
+          "ASDC": 0.0,
+          "B Cells": 0.546573188005553,
+          "BaEoMa": 0.0,
+          "CD14 Mono": 0.0,
+          "CD16 Mono": 0.0,
+          "CLP": 0.0,
+          "EMP": 0.0,
+          "Early Eryth": 0.0,
+          "GMP": 0.0,
+          "HSC": 0.0,
+          "LMPP": 0.0,
+          "Late Eryth": 0.0,
+          "NK Cells": 0.0,
+          "Plasma": 0.0,
+          "Prog Mk": 0.0,
+          "T Cells": 0.453426811994447,
+          "cDC": 0.0,
+          "pDC": 0.0,
+          "pre B": 0.0,
+          "pre-mDC": 0.0,
+          "pre-pDC": 0.0,
+          "pro B": 0.0
+        },
+        "plot": "report/assets/img/lumc-logo.jpg"
+      },
+      "subtype": {
+        "AML.MRC.1.": 0.0,
+        "AML.MRC.2.": 0.0,
+        "AML.MRC.3.": 0.0,
+        "AML.MRC.4.": 0.0,
+        "AML.MRC.5.": 0.0,
+        "CBFB..MYH11": 0.0,
+        "CEBPA": 0.0,
+        "KMT2A.1.": 0.0,
+        "KMT2A.2.": 0.0,
+        "NPM1.1.": 0.0,
+        "NPM1.2.": 0.0,
+        "NPM1.3.": 0.0,
+        "NPM1.4.": 0.0,
+        "NPM1.5.": 0.0,
+        "NUP98": 0.0,
+        "PML..RARA": 0.0,
+        "RUNX1..RUNX1T1": 0.0,
+        "pass_cutoff": false,
+        "prediction": "NotClassified",
+        "sample_id": "SRR8615409"
       }
     }
   }

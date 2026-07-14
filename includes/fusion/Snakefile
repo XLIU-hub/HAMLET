@@ -1,11 +1,6 @@
 include: "common.smk"
 
 
-# Put each sample name in a SimpleNamespace to mimic Snakemake wildcard usage
-# (e.g {wildcards.sample}). This is only used in the 'all' rule.
-samples = [SimpleNamespace(sample=sample) for sample in pep.sample_table["sample_name"]]
-
-
 rule all:
     input:
         arriba=[module_output.arriba(sample) for sample in samples],
@@ -25,9 +20,9 @@ rule arriba:
         discarded="{sample}/fusion/arriba/fusions.raw.discarded.tsv",
     log:
         "log/arriba.{sample}.txt",
-    threads: 1
     container:
         containers["arriba"]
+    threads: 1
     shell:
         """
         arriba \
@@ -39,28 +34,34 @@ rule arriba:
             -t {input.known_fusions} \
             -p {input.protein_domains} \
             -o {output.fusions} \
-            -O {output.discarded} 2> {log}
+            -O {output.discarded} 2>{log}
         """
 
 
 rule filter_fusions:
     input:
         fusions="{sample}/fusion/arriba/fusions.raw.tsv",
-        to_json=srcdir("scripts/arriba2json.py"),
-        to_tsv=srcdir("scripts/json2arriba.py"),
-        report_genes=config["report_genes"],
+        to_json=workflow.source_path("scripts/arriba2json.py"),
+        to_tsv=workflow.source_path("scripts/json2arriba.py"),
+        report_genes=config.get("report_genes", []),
     output:
         json="{sample}/fusion/arriba/fusions.json",
         tsv="{sample}/fusion/arriba/fusions.tsv",
     log:
         "log/arriba_to_json.{sample}.txt",
-    threads: 1
     container:
         containers["arriba"]
+    threads: 1
     shell:
         """
-        {input.to_json} {input.fusions} --report-genes {input.report_genes} > {output.json} 2> {log}
-        {input.to_tsv} {output.json} > {output.tsv} 2>> {log}
+        if [ -z {input.report_genes} ]; then
+            python3 {input.to_json} {input.fusions} >{output.json} 2>{log}
+        else
+            python3 {input.to_json} {input.fusions} \
+                --report-genes {input.report_genes} >{output.json} 2>{log}
+        fi
+
+        python3 {input.to_tsv} {output.json} >{output.tsv} 2>>{log}
         """
 
 
@@ -77,19 +78,19 @@ rule plot_fusions:
         fusions="{sample}/fusion/arriba/fusions.pdf",
     log:
         "log/plot_fusions.{sample}.txt",
-    threads: 1
     container:
         containers["arriba"]
+    threads: 1
     shell:
         """
         draw_fusions.R \
-          --fusions={input.fusions} \
-          --alignments={input.bam} \
-          --annotation={input.gtf} \
-          --cytobands={input.cytobands} \
-          --proteinDomains={input.protein_domains} \
-          --sampleName={wildcards.sample} \
-          --output={output.fusions} 2> {log}
+            --fusions={input.fusions} \
+            --alignments={input.bam} \
+            --annotation={input.gtf} \
+            --cytobands={input.cytobands} \
+            --proteinDomains={input.protein_domains} \
+            --sampleName={wildcards.sample} \
+            --output={output.fusions} 2>{log}
         """
 
 
@@ -100,9 +101,9 @@ rule split_fusion_plots:
         folder=directory("{sample}/fusion/arriba/plots"),
     log:
         "log/split_fusion_plots.{sample}.txt",
-    threads: 1
     container:
         containers["poppler"]
+    threads: 1
     shell:
         """
         mkdir -p {output.folder}
@@ -114,15 +115,18 @@ rule json_output:
     input:
         json="{sample}/fusion/arriba/fusions.json",
         plots="{sample}/fusion/arriba/plots",
-        src=srcdir("scripts/json-output.py"),
+        src=workflow.source_path("scripts/json-output.py"),
     output:
         json="{sample}/fusion/fusion-output.json",
     log:
         "log/fusion_json_output.{sample}.txt",
-    threads: 1
     container:
         containers["arriba"]
+    threads: 1
     shell:
         """
-        {input.src} {input.json} {input.plots} > {output} 2> {log}
+        python3 {input.src} \
+            {input.json} \
+            {input.plots} \
+            --sample {wildcards.sample} >{output} 2>{log}
         """

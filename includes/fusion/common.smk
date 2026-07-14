@@ -4,8 +4,22 @@ from types import SimpleNamespace
 pepfile: config["pepfile"]
 
 
+# If we run with the full hamlet configuration, subset the configuration
+if "fusion" in config:
+    config = config["fusion"]
+
+
+# Put each sample name in a SimpleNamespace to mimic Snakemake wildcard usage
+# (e.g {wildcards.sample}). This is only used in the 'all' rule.
+samples = [SimpleNamespace(sample=sample) for sample in pep.sample_table["sample_name"]]
+
+for s in samples:
+    if " " in s.sample:
+        raise RuntimeError(f'Spaces in samples are not supported ("{s.sample}")')
+
+
 containers = {
-    "arriba": "docker://quay.io/biocontainers/arriba:2.4.0--h0033a41_2",
+    "arriba": "docker://quay.io/biocontainers/arriba:2.5.1--h87b9561_0",
     "poppler": "docker://quay.io/biocontainers/keggcharter:0.6.0--hdfd78af_0",
 }
 

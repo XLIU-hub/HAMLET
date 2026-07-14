@@ -4,9 +4,10 @@
     - dry-run
     - fusion
   command: >
-    snakemake -n
+    snakemake
     --snakefile includes/fusion/Snakefile
-    --printshellcmds
+    --workflow-profile test
+    --dry-run
     --configfile test/data/config/fusion-dummy.json
     --config pepfile=test/pep/chrM-trio.csv
   stdout:
@@ -29,17 +30,42 @@
       - "rule split_fusion_plots:"
       # The final json output file should be produced
       - "TestSample1/fusion/fusion-output.json"
+    contains_regex:
+      # Test that we pass the --report-genes flag when a list of fusion partners
+      # has been specified
+      - "arriba2json.py .* --report-genes"
 
-# Singularity should be available
-- name: test-fusion-sanity-singularity
+- name: test-fusion-no-target-genes
   tags:
-    - sanity
+    - functional
+    - fusion
+  command:
+    bash -c "
+    source test/helper.sh
+
+    snakemake
+    --snakefile includes/fusion/Snakefile
+    --workflow-profile test
+    --configfile test/data/config/fusion-no-target.json
+    --config pepfile=test/pep/chrM.csv
+    "
+  files:
+    # Should create the arriba output files
+    - path: SRR8615409/fusion/arriba/fusions.tsv
+      contains:
+        - "BCR\tABL1"
+
+- name: test-fusion-hamlet-config
+  tags:
+    - dry-run
     - fusion
   command: >
-    singularity --version
-  stdout:
-    contains_regex:
-      - "singularity(-ce)? version 3"
+    snakemake
+    --snakefile includes/fusion/Snakefile
+    --workflow-profile test
+    --dry-run
+    --configfile test/data/config/hamlet-dry.json
+    --config pepfile=test/pep/chrM-trio.csv
 
 # Fusion pipeline should run successfully
 - name: test-fusion-chrM
@@ -50,16 +76,11 @@
     bash -c "
     source test/helper.sh
 
-    snakemake -rp
+    snakemake
     --snakefile includes/fusion/Snakefile
+    --workflow-profile test
     --configfile test/data/config/fusion.json
     --config pepfile=test/pep/chrM.csv
-    --cores
-    --notemp
-    --verbose
-    --use-singularity
-    --singularity-args '--cleanenv --bind /tmp'
-    --singularity-prefix '~/.singularity/cache/snakemake'
     "
   files:
     # Should create the arriba output files
@@ -93,3 +114,30 @@
     - sanity
     - fusion
   command: snakefmt --check includes/fusion
+
+- name: black-fusion
+  tags:
+    - sanity
+    - fusion
+  command: black --check includes/fusion/
+
+- name: mypy-fusion
+  tags:
+    - sanity
+    - fusion
+  command: mypy --strict includes/fusion/
+
+- name: test-fusion-sample-with-space
+  tags:
+    - sanity
+    - fusion
+  command: >
+    snakemake
+    --snakefile includes/fusion/Snakefile
+    --workflow-profile test
+    --configfile test/data/config/fusion.json
+    --config pepfile=test/pep/invalid.csv
+  exit_code: 1
+  stderr:
+    contains:
+      - 'RuntimeError: Spaces in samples are not supported ("SRR 8615687")'
